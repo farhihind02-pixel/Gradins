@@ -16,12 +16,19 @@ const ACC_FOLDER_URN = 'urn:adsk.wipprod:fs.folder:co.y57lR8imTbuJh37gU440fA';
 const VERSION_URN = 'urn:adsk.wipprod:fs.file:vf.Fs-fmn5sROy4n6m4S5jokA?version=9';
 const VIEWABLE_GUID = '40d54ded-3c29-f5a3-ed21-dc3126f84375';
 
-
 // URN encodé base64 pour le viewer et la traduction
 const DERIVATIVE_URN = Buffer.from(VERSION_URN).toString('base64')
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
 console.log('[Config] Derivative URN:', DERIVATIVE_URN);
+
+// ── LOG DE DÉMARRAGE ──────────────────────────────────────────────────────────
+console.log('=== CONFIG CHARGÉE ===');
+console.log('CLIENT_ID:', APS_CLIENT_ID);
+console.log('CLIENT_SECRET présent:', !!APS_CLIENT_SECRET);
+console.log('CLIENT_SECRET longueur:', APS_CLIENT_SECRET?.length);
+console.log('CALLBACK_URL:', APS_CALLBACK_URL);
+console.log('======================');
 
 let session = { token: null, refreshToken: null, expiresAt: 0 };
 
@@ -32,51 +39,78 @@ app.get('/api/auth/login', (req, res) => {
   url.searchParams.set('client_id',     APS_CLIENT_ID);
   url.searchParams.set('redirect_uri',  APS_CALLBACK_URL);
   url.searchParams.set('scope',         'data:read data:write viewables:read');
+  console.log('[Login] Redirection vers:', url.toString());
   res.redirect(url.toString());
 });
 
 app.get('/api/auth/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Code manquant');
+
+  // ── DEBUG ──
+  console.log('=== DEBUG CALLBACK ===');
+  console.log('Code reçu:', code?.slice(0, 10) + '...');
+  console.log('CLIENT_ID:', APS_CLIENT_ID);
+  console.log('CLIENT_SECRET présent:', !!APS_CLIENT_SECRET);
+  console.log('CLIENT_SECRET longueur:', APS_CLIENT_SECRET?.length);
+  console.log('CALLBACK_URL:', APS_CALLBACK_URL);
+
+  const params = new URLSearchParams({
+    grant_type:    'authorization_code',
+    code,
+    client_id:     APS_CLIENT_ID,
+    client_secret: APS_CLIENT_SECRET,
+    redirect_uri:  APS_CALLBACK_URL,
+  });
+  console.log('Body envoyé:', params.toString().replace(APS_CLIENT_SECRET, '***'));
+  console.log('======================');
+  // ── FIN DEBUG ──
+
   try {
     const resp = await fetch('https://developer.api.autodesk.com/authentication/v2/token', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code', code,
-        client_id: APS_CLIENT_ID, client_secret: APS_CLIENT_SECRET,
-        redirect_uri: APS_CALLBACK_URL,
-      }),
+      body:    params,
     });
-    if (!resp.ok) throw new Error(`${resp.status} — ${await resp.text()}`);
-    const data = await resp.json();
+
+    const text = await resp.text();
+    console.log('[Callback] Réponse Autodesk:', resp.status, text);
+
+    if (!resp.ok) throw new Error(`${resp.status} — ${text}`);
+
+    const data = JSON.parse(text);
     session = {
-      token: data.access_token,
+      token:        data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+      expiresAt:    Date.now() + (data.expires_in - 60) * 1000,
     };
     console.log('[Auth] Connecté ✓');
     res.redirect('/');
-  } catch (err) { res.redirect('/?error=' + encodeURIComponent(err.message)); }
+  } catch (err) {
+    console.error('[Auth] Erreur:', err.message);
+    res.redirect('/?error=' + encodeURIComponent(err.message));
+  }
 });
 
 async function getValidToken() {
   if (session.token && Date.now() < session.expiresAt) return session.token;
   if (session.refreshToken) {
     const resp = await fetch('https://developer.api.autodesk.com/authentication/v2/token', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token', refresh_token: session.refreshToken,
-        client_id: APS_CLIENT_ID, client_secret: APS_CLIENT_SECRET,
+      body:    new URLSearchParams({
+        grant_type:    'refresh_token',
+        refresh_token: session.refreshToken,
+        client_id:     APS_CLIENT_ID,
+        client_secret: APS_CLIENT_SECRET,
       }),
     });
     if (resp.ok) {
       const data = await resp.json();
       session = {
-        token: data.access_token,
+        token:        data.access_token,
         refreshToken: data.refresh_token || session.refreshToken,
-        expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+        expiresAt:    Date.now() + (data.expires_in - 60) * 1000,
       };
       return session.token;
     }
@@ -88,7 +122,6 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ connected: !!(session.token && Date.now() < session.expiresAt + 3600000) });
 });
 
-// Le frontend reçoit l'URN dérivé calculé automatiquement
 app.get('/api/token', async (req, res) => {
   try { res.json({ access_token: await getValidToken(), expires_in: 3600 }); }
   catch { res.status(401).json({ error: 'NON_AUTHENTIFIE' }); }
@@ -150,9 +183,10 @@ app.get('/api/manifest', async (req, res) => {
     res.json({ status: resp.status, body: text.slice(0, 2000) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.get('/api/list-models', async (req, res) => {
   try {
-    const token = await getValidToken();
+    const token     = await getValidToken();
     const projectId = 'eb5f9611-c334-411f-b5bd-5d555f107c74';
     const folderUrn = 'urn:adsk.wipprod:fs.folder:co.y57lR8imTbuJh37gU440fA';
     const encodedFolder = encodeURIComponent(folderUrn);
@@ -161,9 +195,9 @@ app.get('/api/list-models', async (req, res) => {
     const data = await resp.json();
     const items = data.included || [];
     const versions = items.map(i => ({
-      name: i.attributes?.displayName,
-      urn: i.id,
-      version: i.attributes?.versionNumber
+      name:    i.attributes?.displayName,
+      urn:     i.id,
+      version: i.attributes?.versionNumber,
     }));
     res.json(versions);
   } catch (err) { res.status(500).json({ error: err.message }); }
