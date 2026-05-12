@@ -13,7 +13,7 @@ const {
 } = process.env;
 
 const ACC_FOLDER_URN = 'urn:adsk.wipprod:fs.folder:co.y57lR8imTbuJh37gU440fA';
-const VERSION_URN = 'urn:adsk.wipprod:fs.file:vf.Fs-fmn5sROy4n6m4S5jokA?version=13';
+const VERSION_URN = 'urn:adsk.wipprod:fs.file:vf.Fs-fmn5sROy4n6m4S5jokA?version=14';
 const VIEWABLE_GUID = '40d54ded-3c29-f5a3-ed21-dc3126f84375';
 
 // URN encodé base64 pour le viewer et la traduction
