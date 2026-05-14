@@ -184,10 +184,11 @@ app.get('/api/list-models', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── glTF : Extraction depuis APS ─────────────────────────────────────────────
+// ── OBJ : Extraction depuis APS ──────────────────────────────────────────────
+// APS ne supporte pas glTF en sortie — on utilise OBJ (supporté par Three.js)
 
-// ÉTAPE 1 — Lancer la conversion APS → glTF
-// POST /api/extract-gltf
+// ÉTAPE 1 — Lancer la conversion APS → OBJ
+// POST /api/extract-gltf  (nom conservé pour compatibilité)
 app.post('/api/extract-gltf', async (req, res) => {
   try {
     const token = await getValidToken();
@@ -195,23 +196,22 @@ app.post('/api/extract-gltf', async (req, res) => {
       input:  { urn: DERIVATIVE_URN, compressedUrn: false },
       output: {
         formats: [{
-          type: 'gltf',
-          views: ['3d'],
-          advanced: { exportFileStructure: 'single', unit: 'meter' },
+          type: 'obj',
+          advanced: { exportFileStructure: 'single', unit: 'meter', modelGuid: VIEWABLE_GUID },
         }],
       },
     };
-    console.log('[glTF] Lancement conversion APS → glTF...');
+    console.log('[OBJ] Lancement conversion APS → OBJ...');
     const resp = await fetch('https://developer.api.autodesk.com/modelderivative/v2/designdata/job', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-ads-force': 'true' },
       body: JSON.stringify(body),
     });
     const text = await resp.text();
-    console.log('[glTF] Réponse APS:', resp.status, text.slice(0, 300));
+    console.log('[OBJ] Réponse APS:', resp.status, text.slice(0, 300));
     if (!resp.ok) return res.status(resp.status).json({ error: text });
-    res.json({ message: 'Conversion lancée. Vérifiez avec GET /api/gltf-status', status: resp.status, body: JSON.parse(text) });
-  } catch (err) { console.error('[glTF] Erreur lancement:', err); res.status(500).json({ error: err.message }); }
+    res.json({ message: 'Conversion OBJ lancée. Vérifiez avec GET /api/gltf-status', status: resp.status, body: JSON.parse(text) });
+  } catch (err) { console.error('[OBJ] Erreur lancement:', err); res.status(500).json({ error: err.message }); }
 });
 
 // ÉTAPE 2 — Vérifier le statut
@@ -224,12 +224,12 @@ app.get('/api/gltf-status', async (req, res) => {
     if (!resp.ok) return res.status(resp.status).json({ error: await resp.text() });
     const manifest = await resp.json();
 
-    const gltfDerivatives = [];
+    const objDerivatives = [];
     function scanDerivatives(derivatives) {
       if (!derivatives) return;
       for (const d of derivatives) {
-        if (d.mime === 'application/octet-stream' && (d.urn?.endsWith('.glb') || d.urn?.endsWith('.gltf'))) {
-          gltfDerivatives.push({ urn: d.urn, mime: d.mime });
+        if (d.urn?.endsWith('.obj') || d.role === 'obj') {
+          objDerivatives.push({ urn: d.urn, mime: d.mime, role: d.role });
         }
         if (d.children) scanDerivatives(d.children);
       }
@@ -238,13 +238,13 @@ app.get('/api/gltf-status', async (req, res) => {
 
     const overallStatus = manifest.status || 'unknown';
     const progress      = manifest.progress || '0%';
-    console.log(`[glTF] Statut: ${overallStatus} (${progress}) — ${gltfDerivatives.length} fichier(s)`);
-    res.json({ status: overallStatus, progress, gltfFiles: gltfDerivatives, ready: overallStatus === 'success' && gltfDerivatives.length > 0 });
+    console.log(`[OBJ] Statut: ${overallStatus} (${progress}) — ${objDerivatives.length} fichier(s) OBJ`);
+    res.json({ status: overallStatus, progress, gltfFiles: objDerivatives, ready: overallStatus === 'success' && objDerivatives.length > 0 });
   } catch (err) { console.error('[glTF] Erreur statut:', err); res.status(500).json({ error: err.message }); }
 });
 
-// ÉTAPE 3 — Télécharger le .glb dans /assets/model.glb
-// GET /api/download-gltf
+// ÉTAPE 3 — Télécharger le .obj dans /assets/model.obj
+// GET /api/download-gltf  (nom conservé pour compatibilité)
 app.get('/api/download-gltf', async (req, res) => {
   try {
     const token       = await getValidToken();
@@ -253,36 +253,43 @@ app.get('/api/download-gltf', async (req, res) => {
     if (!manifestResp.ok) throw new Error('Impossible de récupérer le manifest');
     const manifest = await manifestResp.json();
 
-    let glbUrn = null;
-    function findGlb(derivatives) {
+    // Chercher le fichier .obj dans le manifest (scan récursif)
+    let objUrn = null;
+    function findObj(derivatives) {
       if (!derivatives) return;
       for (const d of derivatives) {
-        if (d.urn?.endsWith('.glb') || d.urn?.endsWith('.gltf')) { glbUrn = d.urn; return; }
-        if (d.children) findGlb(d.children);
+        if (d.urn?.endsWith('.obj') || d.role === 'obj') { objUrn = d.urn; return; }
+        if (d.children) findObj(d.children);
       }
     }
-    findGlb(manifest.derivatives);
+    findObj(manifest.derivatives);
 
-    if (!glbUrn) {
-      return res.status(404).json({ error: 'Aucun fichier glTF trouvé. Lancez POST /api/extract-gltf et attendez "ready: true".' });
+    // Si pas de .obj, afficher le manifest complet pour diagnostic
+    if (!objUrn) {
+      console.warn('[OBJ] Aucun .obj trouvé — manifest:', JSON.stringify(manifest).slice(0, 800));
+      return res.status(404).json({
+        error: 'Aucun fichier OBJ trouvé. Lancez POST /api/extract-gltf et attendez "ready: true".',
+        manifest_status: manifest.status,
+        manifest_progress: manifest.progress,
+      });
     }
 
-    console.log('[glTF] Téléchargement:', glbUrn);
-    const dlUrl  = `https://developer.api.autodesk.com/modelderivative/v2/designdata/${DERIVATIVE_URN}/manifest/${encodeURIComponent(glbUrn)}`;
+    console.log('[OBJ] Téléchargement:', objUrn);
+    const dlUrl  = `https://developer.api.autodesk.com/modelderivative/v2/designdata/${DERIVATIVE_URN}/manifest/${encodeURIComponent(objUrn)}`;
     const dlResp = await fetch(dlUrl, { headers: { Authorization: `Bearer ${token}` } });
     if (!dlResp.ok) throw new Error(`Erreur téléchargement: ${dlResp.status} — ${(await dlResp.text()).slice(0, 200)}`);
 
     const assetsDir  = path.join(__dirname, '../assets');
-    const outputPath = path.join(assetsDir, 'model.glb');
+    const outputPath = path.join(assetsDir, 'model.obj');
     if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
     const buffer = await dlResp.arrayBuffer();
     fs.writeFileSync(outputPath, Buffer.from(buffer));
 
     const sizeMb = (buffer.byteLength / 1024 / 1024).toFixed(1);
-    console.log(`[glTF] Sauvegardé: ${outputPath} (${sizeMb} Mo)`);
-    res.json({ success: true, path: '/assets/model.glb', sizeMb: parseFloat(sizeMb), message: `model.glb sauvegardé (${sizeMb} Mo). Générez le snapshot avec /api/export-snapshot` });
-  } catch (err) { console.error('[glTF] Erreur téléchargement:', err); res.status(500).json({ error: err.message }); }
+    console.log(`[OBJ] Sauvegardé: ${outputPath} (${sizeMb} Mo)`);
+    res.json({ success: true, path: '/assets/model.obj', sizeMb: parseFloat(sizeMb), message: `model.obj sauvegardé (${sizeMb} Mo). Générez le snapshot avec /api/export-snapshot` });
+  } catch (err) { console.error('[OBJ] Erreur téléchargement:', err); res.status(500).json({ error: err.message }); }
 });
 
 // ── Snapshot HTML statique ────────────────────────────────────────────────────
@@ -415,7 +422,7 @@ function generateSnapshotHTML(stats, levees, date) {
 <title>SGTM – Suivi Avancement BIM | ${date}</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"><\/script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/OBJLoader.js"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -672,7 +679,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--dark);min
         <div class="vnm" id="viewerNoModel">
           <div class="vnmi">🏗️</div>
           <div class="vnmt">Maquette non disponible</div>
-          <div class="vnmd">Le fichier <code>model.glb</code> n'a pas été généré.<br>Exécutez les étapes suivantes :</div>
+          <div class="vnmd">Le fichier <code>model.obj</code> n'a pas été généré.<br>Exécutez les étapes suivantes :</div>
           <div class="vnmc">
             <code>1. POST /api/extract-gltf</code><br><br>
             <code>2. GET  /api/gltf-status</code><br><br>
@@ -855,21 +862,21 @@ async function initThreeViewer() {
     threeRenderer.setSize(W2, H2);
   });
 
-  // Vérifier si model.glb est disponible
+  // Vérifier si model.obj est disponible
   setProgress(10, 'Vérification du modèle…');
   try {
-    const check = await fetch('/assets/model.glb', { method: 'HEAD' });
+    const check = await fetch('/assets/model.obj', { method: 'HEAD' });
     if (!check.ok) { showNoModel(); return; }
   } catch(e) { showNoModel(); return; }
 
   setProgress(20, 'Téléchargement de la maquette…');
 
-  const loader = new THREE.GLTFLoader();
+  const loader = new THREE.OBJLoader();
   loader.load(
-    '/assets/model.glb',
-    (gltf) => {
+    '/assets/model.obj',
+    (obj) => {
       setProgress(90, 'Application des couleurs statut…');
-      threeModel = gltf.scene;
+      threeModel = obj;
 
       const box    = new THREE.Box3().setFromObject(threeModel);
       const center = box.getCenter(new THREE.Vector3());
