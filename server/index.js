@@ -197,7 +197,12 @@ app.post('/api/extract-gltf', async (req, res) => {
       output: {
         formats: [{
           type: 'obj',
-          advanced: { exportFileStructure: 'single', unit: 'meter', modelGuid: VIEWABLE_GUID },
+          advanced: {
+            exportFileStructure: 'single',
+            unit: 'meter',
+            modelGuid: VIEWABLE_GUID,
+            objectIds: [-1],   // -1 = tous les objets
+          },
         }],
       },
     };
