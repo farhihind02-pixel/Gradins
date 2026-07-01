@@ -52,7 +52,7 @@
         </svg>
       </div>
       <div class="sgtm-brand-sub">SUIVI AVANCEMENT</div>
-      <div class="sgtm-brand-cat">Chambords</div>
+      <div class="sgtm-brand-cat">Gradins</div>
     </div>
   </div>
   <nav class="sidebar-nav">
@@ -67,13 +67,9 @@
     <div class="legend-item"><span class="legend-dot" style="background:#D93025"></span><span>Non réalisé</span></div>
   </div>
   <button class="btn-export" onclick="exportPDF()">
-  <svg viewBox="0 0 20 20" fill="currentColor">...</svg>
-  Exporter PDF
-</button>
-<!-- <a class="btn-export" href="/api/export-snapshot" download>
-  <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 2h8l4 4v12H4V2zm5 9v4m0 0l-2-2m2 2l2-2"/></svg>
-  Snapshot externe
-</a> -->
+    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 2h8l4 4v12H4V2zm5 9v4m0 0l-2-2m2 2l2-2"/></svg>
+    Exporter PDF
+  </button>
 </aside>
 
 <!-- MAIN -->
@@ -86,7 +82,7 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5h16M2 10h16M2 15h16"/></svg>
       </button>
       <div class="topbar-titles">
-        <div class="topbar-main-title">Tableau de bord de suivi des travaux des Chambords</div>
+        <div class="topbar-main-title">Tableau de bord de suivi des travaux des Gradins</div>
         <div class="topbar-meta">
           <div class="topbar-meta-block">
             <span class="topbar-meta-label">PROJET</span>
@@ -130,33 +126,13 @@
       </div>
     </div>
     <div class="qf-group">
-      <label class="qf-item-label">Chambord</label>
-      <div class="ms-wrapper" id="msChambord">
-        <button class="ms-btn" onclick="toggleDropdown('msChambord')">
-          Tout <span class="ms-badge" id="msChambordBadge" style="display:none"></span>
+      <label class="qf-item-label">Zone</label>
+      <div class="ms-wrapper" id="msZone">
+        <button class="ms-btn" onclick="toggleDropdown('msZone')">
+          Tout <span class="ms-badge" id="msZoneBadge" style="display:none"></span>
           <svg viewBox="0 0 12 12" fill="currentColor" width="9"><path d="M2 4l4 4 4-4z"/></svg>
         </button>
-        <div class="ms-dropdown" id="msChambordDrop"></div>
-      </div>
-    </div>
-    <div class="qf-group">
-      <label class="qf-item-label">Levée</label>
-      <div class="ms-wrapper" id="msLevee">
-        <button class="ms-btn" onclick="toggleDropdown('msLevee')">
-          Tout <span class="ms-badge" id="msLeveeBadge" style="display:none"></span>
-          <svg viewBox="0 0 12 12" fill="currentColor" width="9"><path d="M2 4l4 4 4-4z"/></svg>
-        </button>
-        <div class="ms-dropdown" id="msLeveeDrop"></div>
-      </div>
-    </div>
-    <div class="qf-group">
-      <label class="qf-item-label">Phase</label>
-      <div class="ms-wrapper" id="msPhase">
-        <button class="ms-btn" onclick="toggleDropdown('msPhase')">
-          Tout <span class="ms-badge" id="msPhaseBadge" style="display:none"></span>
-          <svg viewBox="0 0 12 12" fill="currentColor" width="9"><path d="M2 4l4 4 4-4z"/></svg>
-        </button>
-        <div class="ms-dropdown" id="msPhaseDrop"></div>
+        <div class="ms-dropdown" id="msZoneDrop"></div>
       </div>
     </div>
     <div class="qf-group">
@@ -238,27 +214,35 @@
       </div>
     </div>
 
-    <!-- 4. KPI Levées -->
+    <!-- 4. Avancement par Activité -->
     <div class="panel top-card">
-      <div class="panel-title-sm">LEVÉES</div>
-      <div class="kpi-stack">
-        <div class="kpi-stack-item">
-          <div class="kpi-stack-icon kpi-icon-orange">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7L12 2l9 5v10l-9 5-9-5V7z"/></svg>
+      <div class="panel-title-sm">AVANCEMENT PAR ACTIVITÉ</div>
+      <div class="activity-body">
+        <div class="activity-item">
+          <div class="activity-header">
+            <span class="activity-name">Ferraillage</span>
+            <span class="activity-pct" id="ferrPct">—</span>
           </div>
-          <div>
-            <div class="kpi-stack-sub">NOMBRE TOTAL DE LEVÉES</div>
-            <div class="kpi-stack-num" id="kpiTotal">—</div>
+          <div class="activity-bar-bg">
+            <div class="activity-bar-fill activity-bar-ferr" id="ferrBar" style="width:0%"></div>
           </div>
         </div>
-        <div class="kpi-stack-sep"></div>
-        <div class="kpi-stack-item">
-          <div class="kpi-stack-icon" style="background:rgba(34,176,125,0.12);color:#22b07d">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M7 12l3 3 6-6"/></svg>
+        <div class="activity-item">
+          <div class="activity-header">
+            <span class="activity-name">Coulage</span>
+            <span class="activity-pct" id="coulPct">—</span>
           </div>
-          <div>
-            <div class="kpi-stack-sub">LEVÉES RÉALISÉES</div>
-            <div class="kpi-stack-num kpi-green" id="kpiRealise">—</div>
+          <div class="activity-bar-bg">
+            <div class="activity-bar-fill activity-bar-coul" id="coulBar" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-header">
+            <span class="activity-name">Pose</span>
+            <span class="activity-pct" id="posePct">—</span>
+          </div>
+          <div class="activity-bar-bg">
+            <div class="activity-bar-fill activity-bar-pose" id="poseBar" style="width:0%"></div>
           </div>
         </div>
       </div>
@@ -269,29 +253,29 @@
   <!-- ROW 2: Table Chambord + Maquette -->
   <section class="bottom-row">
 
-    <!-- Table chambord -->
-    <div class="panel bottom-left">
-      <div class="panel-header-row">
-        <div class="panel-title-sm">AVANCEMENT PAR CHAMBORD</div>
-        <input type="text" class="panel-search" id="chambordSearch" placeholder="Filtrer…" oninput="filterChambordTable()"/>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>CHAMBORD</th>
-              <th>TOTAL</th>
-              <th>RÉALISÉES</th>
-              <th>%</th>
-            </tr>
-          </thead>
-          <tbody id="chambordBody"></tbody>
-        </table>
-      </div>
-      <div class="table-footer" id="tableFooter"></div>
+  <!-- Table zone -->
+  <div class="panel bottom-left">
+    <div class="panel-header-row">
+      <div class="panel-title-sm">AVANCEMENT PAR ZONE</div>
+      <input type="text" class="panel-search" id="zoneSearch" placeholder="Filtrer…" oninput="filterZoneTable()"/>
     </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ZONE</th>
+            <th>TOTAL</th>
+            <th>RÉALISÉES</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody id="zoneBody"></tbody>
+      </table>
+    </div>
+    <div class="table-footer" id="tableFooter"></div>
+  </div>
 
-    <!-- Viewer 3D -->
+  <!-- Viewer 3D -->
     <div class="panel bottom-right viewer-panel">
       <div class="panel-header-row">
         <div class="panel-title-sm">MAQUETTE 3D – CALEPINAGE</div>

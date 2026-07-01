@@ -46,10 +46,18 @@ function updateKPIs(stats) {
   const { total, byStatut, pctGlobal } = stats;
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   set('kpiPct',        `${pctGlobal}%`);
-  set('kpiTotal',       total.toLocaleString('fr-FR'));
-  set('kpiRealise',    (byStatut.realise||0).toLocaleString('fr-FR'));
   set('kpiRealiseText',`${(byStatut.realise||0).toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}`);
   set('kpiRestant',    (total-(byStatut.realise||0)).toLocaleString('fr-FR'));
+}
+
+// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
+function updateActivityBars(elements) {
+  const stats = computeActivityStats(elements || []);
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const setW=(id,v)=>{ const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
+  set('ferrPct', `${stats.ferr.pct}%`); setW('ferrBar', stats.ferr.pct);
+  set('coulPct', `${stats.coul.pct}%`); setW('coulBar', stats.coul.pct);
+  set('posePct', `${stats.pose.pct}%`); setW('poseBar', stats.pose.pct);
 }
 
 // ── Enterprise ──────────────────────────────────────────────────────────────
@@ -134,20 +142,20 @@ function updateBlocChartData(stats) {
   blocChart.update();
 }
 
-// ── Table Chambord ───────────────────────────────────────────────────────────
-function renderChambordTable(stats, filterText='') {
-  const tbody=document.getElementById('chambordBody');
+// ── Table Zone ────────────────────────────────────────────────────────────────
+function renderZoneTable(stats, filterText='') {
+  const tbody=document.getElementById('zoneBody');
   const footer=document.getElementById('tableFooter');
   if (!tbody) return;
 
-  const rows=Object.entries(stats.byChambord||{})
+  const rows=Object.entries(stats.byZone||{})
     .filter(([name])=>name.toLowerCase().includes(filterText.toLowerCase()))
     .sort(([a],[b])=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0)||a.localeCompare(b));
 
   tbody.innerHTML=rows.map(([name,d])=>{
     const pct=d.total>0?Math.round(d.realise/d.total*100):0;
     const barCol=pct>=70?'#22b07d':pct>=40?'#E87722':'#D93025';
-    return `<tr data-chambord="${name}" onclick="if(window.onChambordRowClick)window.onChambordRowClick('${name}',this)">
+    return `<tr data-zone="${name}" onclick="if(window.onZoneRowClick)window.onZoneRowClick('${name}',this)">
       <td><strong>${name}</strong></td>
       <td>${d.total}</td>
       <td style="color:#22b07d;font-weight:600">${d.realise||0}</td>
@@ -160,11 +168,11 @@ function renderChambordTable(stats, filterText='') {
     </tr>`;
   }).join('');
 
-  if (footer) footer.textContent=`Affichage de 1 à ${rows.length} sur ${Object.keys(stats.byChambord||{}).length} chambords`;
+  if (footer) footer.textContent=`Affichage de 1 à ${rows.length} sur ${Object.keys(stats.byZone||{}).length} zones`;
 }
 
-window.filterChambordTable=function(){
-  const ft=document.getElementById('chambordSearch')?.value||'';
+window.filterZoneTable=function(){
+  const ft=document.getElementById('zoneSearch')?.value||'';
   const stats=AppState.filteredStats||AppState.stats;
-  if(stats) renderChambordTable(stats,ft);
+  if(stats) renderZoneTable(stats,ft);
 };

@@ -1,7 +1,7 @@
 /**
  * data.js — Données BIM
  * 
- * LEVÉE = groupe d'éléments ayant le même Bloc + Chambord + Niveau (ME_ELEMENT LEVEL)
+ * LEVÉE = groupe d'éléments ayant le même Bloc + Zone + Niveau (ME_ELEMENT LEVEL)
  * Le dashboard affiche des LEVÉES, pas des éléments individuels.
  */
 
@@ -51,18 +51,29 @@ async function loadDataFromViewer(viewer) {
   return new Promise((resolve, reject) => {
     viewer.model.getBulkProperties(
       null,
-      { propFilter: ['Bloc','CHAMBORD','ME_ELEMENT LEVEL','levée réalisé','RESTE','Coulé 1','Coulé 2','Phase','Levée','Category'] },
+      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume'] },
       (results) => {
         AppState.allElements = [];
         AppState.dbIdMap.clear();
 
         for (const r of results) {
           const el = normalizeElementFromViewer(r);
-          if (el.bloc && el.chambord) {
-            AppState.allElements.push(el);
-            AppState.dbIdMap.set(r.dbId, el);
-          }
+          AppState.allElements.push(el);
+          AppState.dbIdMap.set(r.dbId, el);
         }
+
+        // Debug : afficher les premiers éléments avec BB_Bloc
+        const avecBloc = AppState.allElements.filter(e => e.bloc);
+        console.log('[Data] Éléments avec bloc:', avecBloc.length, avecBloc.slice(0,3).map(e=>({bloc:e.bloc,zone:e.zone})));
+
+        // Debug : histogramme des valeurs de zone (pour diagnostiquer les zones manquantes)
+        const zoneCounts = {};
+        let sansZone = 0;
+        for (const e of AppState.allElements) {
+          if (e.zone) zoneCounts[e.zone] = (zoneCounts[e.zone]||0) + 1;
+          else sansZone++;
+        }
+        console.log('[Data] Distribution zones:', zoneCounts, '| Sans zone:', sansZone, '/', AppState.allElements.length);
 
         // Construire les levées depuis les éléments du viewer
         AppState.allLevees   = buildLeveesFromElements(AppState.allElements);
@@ -82,6 +93,8 @@ function normalizeElementFromViewer(raw) {
   const props = {};
   for (const p of (raw.properties || [])) {
     props[p.displayName?.toLowerCase()] = p.displayValue;
+    // Aussi indexer par attributeName pour les paramètres partagés
+    if (p.attributeName) props[p.attributeName.toLowerCase()] = p.displayValue;
   }
   const get = (...keys) => {
     for (const k of keys) {
@@ -91,68 +104,64 @@ function normalizeElementFromViewer(raw) {
     return null;
   };
 
-  // levée réalisé = 1 → réalisé, sinon → non réalisé
-  // Scan robuste insensible à la casse et aux accents
-  const leveeRealiseProp = (raw.properties || []).find(p =>
-    p.type === 1 && p.displayCategory === 'Autre' &&
-    p.attributeName && p.attributeName.toLowerCase().includes('lev') &&
-    p.attributeName.toLowerCase().includes('r')
-  );
-  const leveeRealise = leveeRealiseProp ? leveeRealiseProp.displayValue : null;
+  const phase1 = get('Phase 1', 'phase 1');
+  const reste  = get('RESTE');
+  const coule1 = get('Coulé 1', 'Coule 1');
+  const coule2 = get('Coulé 2', 'Coule 2');
   const isTrue = v => v === true || v === 'true' || v === 1 || v === '.T.';
 
-  const statut = isTrue(leveeRealise) ? 'realise' : 'non_realise';
-
-  const reste = get('RESTE', 'reste');
-  // Récupérer la catégorie Revit
-  const categorie = (raw.properties || []).find(p => p.displayName === 'Category')?.displayValue || '';
+  let statut;
+  if (isTrue(phase1))              statut = 'realise';
+  else if (isTrue(coule1) || isTrue(coule2)) statut = 'en_cours';
+  else if (isTrue(reste))          statut = 'non_realise';
+  else                             statut = 'non_concerne';
 
   return {
     id:        String(raw.dbId),
     expressId: raw.dbId,
-    bloc:      get('Bloc', 'bloc') ? String(get('Bloc','bloc')).trim() : null,
-    chambord:  get('CHAMBORD','Chambord') ? String(get('CHAMBORD','Chambord')).trim() : null,
+    bloc:      get('BB_Bloc', 'Bloc', 'bloc') ? String(get('BB_Bloc', 'Bloc','bloc')).trim() : null,
+    zone:      get('YE_Zone', 'Zone', 'zone') ? String(get('YE_Zone', 'Zone','zone')).trim() : null,
     level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
-    levee:     get('Levée', 'Levee', 'levée', 'levee') !== null ? String(get('Levée','Levee','levée','levee')) : null,
-    phase:     get('Phase', 'phase') !== null ? 'Phase ' + get('Phase','phase') : null,
-    reste:     isTrue(reste),
-    categorie,
+    ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
+    coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
+    pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
+    volume:    parseVolumeValue(get('Volume')),
     statut,
   };
+}
+
+// Extrait la valeur numérique d'un paramètre Volume Revit (souvent formaté "12.34 m³")
+function parseVolumeValue(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const match = String(v).replace(',', '.').match(/-?\d+(\.\d+)?/);
+  return match ? parseFloat(match[0]) : 0;
+}
+
+// Normalise une valeur de paramètre BB_* (case à cocher Revit) en 1 / 0 / null
+// null = paramètre non renseigné sur cet élément (exclu du calcul d'avancement)
+function toBBFlag(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (v === true || v === 1 || v === '1' || v === '.T.' || v === 'true')  return 1;
+  if (v === false || v === 0 || v === '0' || v === '.F.' || v === 'false') return 0;
+  return null;
 }
 
 // ── Construire les levées depuis les éléments ─────────────────────────────────
 function buildLeveesFromElements(elements) {
   const dict = {};
   for (const el of elements) {
-    // Clé basée sur Bloc + Chambord + Levée (numéro) + Phase
-    // C'est la vraie définition d'une levée physique
-    // Ignorer les éléments sans levée/phase assignée et les éléments RESTE
-    if (el.reste) continue;
-    // Inclure seulement les Murs dans le calcul des levées
-    if ((el.categorie || '') !== 'Revit Murs') continue;
-    const leveeNum = el.levee && el.levee !== '0' ? el.levee : null;
-    if (!leveeNum) continue;
-    const phase    = el.phase || '?';
-    if (phase === 'Phase 0' || phase === '?') continue;
-    const key      = `${el.bloc}|${el.chambord}|${phase}|${leveeNum}`;
-    if (!dict[key]) dict[key] = {
-      key, bloc: el.bloc, chambord: el.chambord,
-      level:  el.level || null,
-      phase:  el.phase || null,
-      levee:  el.levee || null,
-      statuts: [], nb_elements: 0
-    };
+    const level = el.level || 'L?';
+    const key   = `${el.bloc}|${el.zone}|${level}`;
+    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, level, statuts: [], nb_elements: 0 };
     dict[key].statuts.push(el.statut);
     dict[key].nb_elements++;
   }
   return Object.values(dict).map(d => ({
     key:         d.key,
     bloc:        d.bloc,
-    chambord:    d.chambord,
+    zone:        d.zone,
     level:       d.level,
-    phase:       d.phase,
-    levee:       d.levee,
     statut:      leveeStatus(d.statuts),
     nb_elements: d.nb_elements,
   }));
@@ -160,30 +169,33 @@ function buildLeveesFromElements(elements) {
 
 function leveeStatus(statuts) {
   const n = statuts.length;
-  const realises = statuts.filter(s => s === 'realise').length;
-  if (realises === n) return 'realise';
-  return 'non_realise';
+  const c = { realise:0, en_cours:0, non_realise:0, non_concerne:0 };
+  statuts.forEach(s => c[s] = (c[s]||0)+1);
+  if (c.realise === n)  return 'realise';
+  if (c.en_cours > 0)   return 'en_cours';
+  if (c.non_realise > 0) return 'non_realise';
+  return 'non_concerne';
 }
 
 // ── Calcul des stats sur les LEVÉES ──────────────────────────────────────────
 function computeStats(levees) {
   const total    = levees.length;
-  const byStatut = { realise:0, non_realise:0 };
+  const byStatut = { realise:0, en_cours:0, non_realise:0, non_concerne:0 };
   const byBloc   = {};
-  const byChambord = {};
+  const byZone   = {};
 
   for (const l of levees) {
     byStatut[l.statut] = (byStatut[l.statut]||0) + 1;
 
     if (l.bloc) {
-      if (!byBloc[l.bloc]) byBloc[l.bloc] = { total:0, realise:0, non_realise:0 };
+      if (!byBloc[l.bloc]) byBloc[l.bloc] = { total:0, realise:0, en_cours:0, non_realise:0, non_concerne:0 };
       byBloc[l.bloc].total++;
       byBloc[l.bloc][l.statut] = (byBloc[l.bloc][l.statut]||0) + 1;
     }
-    if (l.chambord) {
-      if (!byChambord[l.chambord]) byChambord[l.chambord] = { total:0, realise:0, non_realise:0 };
-      byChambord[l.chambord].total++;
-      byChambord[l.chambord][l.statut] = (byChambord[l.chambord][l.statut]||0) + 1;
+    if (l.zone) {
+      if (!byZone[l.zone]) byZone[l.zone] = { total:0, realise:0, en_cours:0, non_realise:0, non_concerne:0 };
+      byZone[l.zone].total++;
+      byZone[l.zone][l.statut] = (byZone[l.zone][l.statut]||0) + 1;
     }
   }
 
@@ -191,7 +203,7 @@ function computeStats(levees) {
     total,
     byStatut,
     byBloc,
-    byChambord,
+    byZone,
     pctGlobal: total > 0 ? Math.round((byStatut.realise / total) * 100) : 0,
   };
 }
@@ -201,7 +213,7 @@ function applyFilter(type, value) {
   AppState.activeFilter = { type, value };
   const filtered = AppState.allLevees.filter(l => {
     if (type === 'bloc')     return l.bloc === value;
-    if (type === 'chambord') return l.chambord === value;
+    if (type === 'zone')     return l.zone === value;
     if (type === 'statut')   return l.statut === value;
     return true;
   });
@@ -228,10 +240,43 @@ function getDbIdsForFilter(type, value) {
   return AppState.allElements
     .filter(el => {
       if (type === 'bloc')     return el.bloc === value;
-      if (type === 'chambord') return el.chambord === value;
+      if (type === 'zone')     return el.zone === value;
       if (type === 'statut')   return el.statut === value;
       return false;
     })
     .map(el => el.expressId || parseInt(el.id))
     .filter(Boolean);
+}
+
+// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
+// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
+// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
+// Les 3 activités sont calculées en VOLUME (pas en nombre d'éléments) :
+// % = somme(Volume des éléments où l'étape est effectuée) / somme(Volume de TOUS les éléments)
+// Cascade : Pose implique Coulage, Coulage implique Ferraillage
+// (BB FERR / BB COULAGE reflètent l'étape EN COURS et sont remis à 0 aux étapes suivantes,
+// donc on considère l'étape acquise dès qu'une étape ultérieure est faite)
+function computeActivityStats(elements) {
+  let ferrVolume = 0, coulVolume = 0, poseVolume = 0, totalVolume = 0;
+
+  for (const el of elements) {
+    const v = el.volume || 0;
+    totalVolume += v;
+
+    const effFerr = el.pose === 1 || el.coul === 1 || el.ferr === 1;
+    if (effFerr) ferrVolume += v;
+
+    const effCoul = el.pose === 1 || el.coul === 1;
+    if (effCoul) coulVolume += v;
+
+    if (el.pose === 1) poseVolume += v;
+  }
+
+  const pct = (v) => totalVolume > 0 ? Math.round((v / totalVolume) * 100) : 0;
+
+  return {
+    ferr: { label: 'Ferraillage', doneVolume: ferrVolume, totalVolume, pct: pct(ferrVolume) },
+    coul: { label: 'Coulage',     doneVolume: coulVolume, totalVolume, pct: pct(coulVolume) },
+    pose: { label: 'Pose',        doneVolume: poseVolume, totalVolume, pct: pct(poseVolume) },
+  };
 }

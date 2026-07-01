@@ -159,18 +159,22 @@ function setupViewerEvents() {
         closeDetail();
         return;
       }
+      // Sélection multiple (ex: résultat d'un filtre) → ne pas relancer le filtre automatique,
+      // juste afficher un résumé pour éviter une boucle avec onQuickFilter().
+      if (dbIds.length > 1) {
+        showSelectionSummary(dbIds.length);
+        return;
+      }
       const dbId = dbIds[0];
       // Try dbIdMap first
       const el = AppState.dbIdMap.get(dbId);
       if (el) {
         showElementDetail(el);
-        if (window.onViewerSelection) window.onViewerSelection(el);
       } else {
         // Chercher par ID dans allElements
         const found = AppState.allElements.find(e => parseInt(e.id) === dbId);
         if (found) {
           showElementDetail(found);
-          if (window.onViewerSelection) window.onViewerSelection(found);
         } else {
           showRawProperties(dbId);
         }
@@ -223,10 +227,13 @@ function filterViewerByBloc(bloc) {
 /**
  * Isoler les éléments d'un chambord dans le viewer
  */
-function filterViewerByChambord(chambord) {
+/**
+ * Isoler les éléments d'une zone dans le viewer
+ */
+function filterViewerByZone(zone) {
   if (!viewer) return;
-  if (!chambord) { showAllElements(); return; }
-  const dbIds = getDbIdsForFilter('chambord', chambord);
+  if (!zone) { showAllElements(); return; }
+  const dbIds = getDbIdsForFilter('zone', zone);
   if (dbIds.length) {
     viewer.isolate(dbIds);
     viewer.fitToView(dbIds);
@@ -262,6 +269,18 @@ window.isolateSelection = function() {
 };
 
 // ── Détail élément ────────────────────────────────────────────────────────────
+function showSelectionSummary(count) {
+  const panel = document.getElementById('detailPanel');
+  const body  = document.getElementById('detailBody');
+  if (!panel || !body) return;
+  body.innerHTML = `
+    <div class="detail-row">
+      <span class="detail-label">Sélection</span>
+      <span class="detail-value">${count.toLocaleString('fr-FR')} éléments</span>
+    </div>
+  `;
+  panel.style.display = 'block';
+}
 
 function showElementDetail(el) {
   const panel = document.getElementById('detailPanel');
@@ -285,8 +304,8 @@ function showElementDetail(el) {
       <span class="detail-value">${el.bloc || '—'}</span>
     </div>
     <div class="detail-row">
-      <span class="detail-label">Chambord</span>
-      <span class="detail-value">${el.chambord || '—'}</span>
+      <span class="detail-label">Zone</span>
+      <span class="detail-value">${el.zone || '—'}</span>
     </div>
     <div class="detail-row">
       <span class="detail-label">Levée</span>
@@ -311,7 +330,7 @@ function showRawProperties(dbId) {
     if (!panel || !body) return;
 
     const relevant = (props.properties || []).filter(p =>
-      ['Bloc','CHAMBORD','Phase 1','RESTE','Coulé 1','Coulé 2','Levée'].includes(p.displayName)
+      ['Bloc','BB_Bloc','YE_Zone','Phase 1','RESTE','Coulé 1','Coulé 2','Levée'].includes(p.displayName)
     );
 
     body.innerHTML = `

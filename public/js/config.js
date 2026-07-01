@@ -4,7 +4,9 @@
 const BIM_CONFIG = {
   colors: {
     realise:     '#22b07d',
+    enCours:     '#E87722',
     nonRealise:  '#D93025',
+    nonConcerne: '#9AA0A6',
     sgtmOrange:  '#E87722',
     sgtmGray:    '#4A4A4A',
   },
@@ -43,7 +45,9 @@ function getStatusBadgeClass(statut) {
 // Couleurs APS pour le viewer (THREE.Vector4)
 const APS_COLORS = {
   realise:      { x:0.133, y:0.690, z:0.490, w:1 },
+  en_cours:     { x:0.910, y:0.467, z:0.133, w:1 },
   non_realise:  { x:0.851, y:0.188, z:0.145, w:1 },
+  non_concerne: { x:0.604, y:0.627, z:0.639, w:1 },
 };
 
 function getAPSColor(statut) {

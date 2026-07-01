@@ -5,40 +5,9 @@
 // État des sélections multi
 const MSState = {
   bloc:     new Set(),
-  chambord: new Set(),
-  levee:    new Set(),
-  phase:    new Set(),
+  zone:     new Set(),
   statut:   '',
 };
-
-// Mapping Zone → Chambords (pour les options de bloc spéciales)
-const ZONE_MAP = {
-  'Bloc 2 - Zone 11': ['CR 22', 'CR 23', 'CR 24', 'CR 25'],
-};
-
-// Tous les chambords réservés aux zones spéciales
-const ALL_ZONE_CHAMBORDS = new Set(Object.values(ZONE_MAP).flat());
-
-/**
- * Détermine si un élément (levée ou mur) appartient à "Bloc 2 - Zone 11"
- * Règle :
- *   - CR 22 → toujours Zone 11
- *   - CR 23, 24, 25 + Phase 1 + Levée 1 ou 2 → Bloc 2 (PAS Zone 11)
- *   - CR 23, 24, 25 + autres cas → Zone 11
- */
-function isZone11(item) {
-  const cr = item.chambord;
-  if (!ALL_ZONE_CHAMBORDS.has(cr)) return false; // pas un CR de zone 11
-
-  if (cr === 'CR 22') return true; // CR 22 toujours en zone 11
-
-  // CR 23, 24, 25 : Phase 1 + Levée 1 ou 2 → Bloc 2 (pas zone 11)
-  const phase = String(item.phase || '').trim();
-  const levee = parseInt(item.levee);
-  if (phase === 'Phase 1' && (levee === 1 || levee === 2)) return false;
-
-  return true; // tous les autres cas → zone 11
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const { connected } = await fetch('/api/auth/status').then(r=>r.json());
@@ -68,7 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const jsonLoaded = await loadDataFromJSON();
   if (jsonLoaded && AppState.stats) {
     initCharts(AppState.stats);
-    renderChambordTable(AppState.stats);
+    updateActivityBars(AppState.allElements);
+    renderZoneTable(AppState.stats);
     initMultiSelects(AppState.stats);
   }
 
@@ -76,28 +46,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.onViewerReady = async function(viewerInst) {
+  // Toujours recharger depuis le viewer et reconstruire les filtres
   await loadDataFromViewer(viewerInst);
   initCharts(AppState.stats);
-  renderChambordTable(AppState.stats);
-  ['msBlocDrop','msChambordDrop','msLeveeDrop','msPhaseDrop'].forEach(id => {
+  updateActivityBars(AppState.allElements);
+  renderZoneTable(AppState.stats);
+  // Vider et reconstruire les dropdowns avec les vraies données du viewer
+  ['msBlocDrop','msZoneDrop'].forEach(id => {
     const drop = document.getElementById(id);
-    if (drop) {
-      drop.innerHTML = '';
-      drop.dataset.built = '';
-    }
+    if (drop) drop.innerHTML = '';
   });
-  MSState.bloc.clear(); MSState.chambord.clear();
-  MSState.levee.clear(); MSState.phase.clear();
+  MSState.bloc.clear(); MSState.zone.clear();
   initMultiSelects(AppState.stats);
 };
 
 // ── Multi-select helpers ──────────────────────────────────────────────────────
 function buildMultiSelect(containerId, dropId, badgeId, values, labelFn, stateKey) {
   const drop = document.getElementById(dropId);
-  if (!drop) return;
-  if (drop.dataset.built === '1') return;
-  drop.dataset.built = '1';
+  if (!drop || drop.querySelector('.ms-option')) return; // already built
 
+  // Tout sélectionner (décoché par défaut = Set vide = tout affiché)
   const allDiv = document.createElement('div');
   allDiv.className = 'ms-select-all';
   allDiv.innerHTML = `<input type="checkbox" id="${dropId}All"> Tout sélectionner`;
@@ -125,6 +93,7 @@ function buildMultiSelect(containerId, dropId, badgeId, values, labelFn, stateKe
       if (this.checked) MSState[stateKey].add(val);
       else MSState[stateKey].delete(val);
       div.classList.toggle('checked', this.checked);
+      // Update "all" checkbox
       const allCb = drop.querySelector(`#${dropId}All`);
       const totalOptions = drop.querySelectorAll('.ms-option input').length;
       if (allCb) allCb.checked = MSState[stateKey].size === totalOptions;
@@ -154,23 +123,13 @@ function closeAllDropdowns() {
 }
 
 function initMultiSelects(stats) {
-  const blocs = Object.keys(stats.byBloc)
-    .filter(b => !ZONE_MAP[b])
-    .sort((a, b) => parseInt(a) - parseInt(b));
+  // Blocs
+  const blocs = Object.keys(stats.byBloc).sort();
+  buildMultiSelect('msBloc','msBlocDrop','msBlocBadge', blocs, b=>`Bloc ${b}`, 'bloc');
 
-  const blocOptions = [...blocs, ...Object.keys(ZONE_MAP)];
-  buildMultiSelect('msBloc','msBlocDrop','msBlocBadge', blocOptions, b => ZONE_MAP[b] ? b : `Bloc ${b}`, 'bloc');
-
-  const chambords = Object.keys(stats.byChambord)
-    .sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
-  buildMultiSelect('msChambord','msChambordDrop','msChambordBadge', chambords, c=>c, 'chambord');
-
-  const leveeVals = [...new Set(AppState.allLevees.map(l=>l.levee).filter(v=>v!==null&&v!==undefined))]
-    .sort((a,b)=>parseInt(a)-parseInt(b));
-  buildMultiSelect('msLevee','msLeveeDrop','msLeveeBadge', leveeVals, v=>`Levée ${v}`, 'levee');
-
-  const phases = [...new Set(AppState.allLevees.map(l=>l.phase).filter(Boolean))].sort();
-  buildMultiSelect('msPhase','msPhaseDrop','msPhaseBadge', phases, p=>p, 'phase');
+  // Zones
+  const zones = Object.keys(stats.byZone).sort();
+  buildMultiSelect('msZone','msZoneDrop','msZoneBadge', zones, z=>z, 'zone');
 
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
 }
@@ -180,31 +139,9 @@ window.onQuickFilter = function() {
   const statut = document.getElementById('filterStatut')?.value || '';
   document.getElementById('filterStatut')?.classList.toggle('has-value', statut!=='');
 
-  const selectedBlocs = new Set();
-  const selectedZoneChambords = new Set();
-  MSState.bloc.forEach(val => {
-    if (ZONE_MAP[val]) {
-      ZONE_MAP[val].forEach(c => selectedZoneChambords.add(c));
-    } else {
-      selectedBlocs.add(val);
-    }
-  });
-
   const filteredLevees = AppState.allLevees.filter(l => {
-    if (MSState.bloc.size > 0) {
-      const itemIsZone11 = isZone11(l);
-
-      if (itemIsZone11) {
-        // Cet élément appartient à Zone 11 → visible seulement si Zone 11 sélectionnée
-        if (!selectedZoneChambords.has(l.chambord)) return false;
-      } else {
-        // Cet élément appartient à un bloc normal → visible si son bloc est sélectionné
-        if (!selectedBlocs.has(l.bloc)) return false;
-      }
-    }
-    if (MSState.chambord.size>0 && !MSState.chambord.has(l.chambord))        return false;
-    if (MSState.levee.size>0    && !MSState.levee.has(String(l.levee)))      return false;
-    if (MSState.phase.size>0    && !MSState.phase.has(l.phase))              return false;
+    if (MSState.bloc.size>0     && !MSState.bloc.has(l.bloc))                return false;
+    if (MSState.zone.size>0     && !MSState.zone.has(l.zone))                return false;
     if (statut && l.statut !== statut)                                        return false;
     return true;
   });
@@ -214,27 +151,20 @@ window.onQuickFilter = function() {
   AppState.filteredLevees = filteredLevees;
 
   updateCharts(filteredStats);
-  renderChambordTable(filteredStats);
+  renderZoneTable(filteredStats);
   updateQfCount(filteredLevees.length, AppState.allLevees.length);
 
+  // Éléments pour le viewer
   const filteredElements = AppState.allElements.filter(el => {
-    if (MSState.bloc.size > 0) {
-      const itemIsZone11 = isZone11(el);
-
-      if (itemIsZone11) {
-        if (!selectedZoneChambords.has(el.chambord)) return false;
-      } else {
-        if (!selectedBlocs.has(el.bloc)) return false;
-      }
-    }
-    if (MSState.chambord.size>0 && !MSState.chambord.has(el.chambord))       return false;
-    if (MSState.levee.size>0    && !MSState.levee.has(String(el.levee)))     return false;
-    if (MSState.phase.size>0    && !MSState.phase.has(el.phase))             return false;
+    if (MSState.bloc.size>0     && !MSState.bloc.has(el.bloc))               return false;
+    if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
     if (statut && el.statut !== statut)                                        return false;
     return true;
   });
 
-  const hasFilter = MSState.bloc.size>0||MSState.chambord.size>0||MSState.levee.size>0||MSState.phase.size>0||!!statut;
+  updateActivityBars(filteredElements);
+
+  const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||!!statut;
   applyViewerFilter(filteredElements, hasFilter);
 };
 
@@ -243,6 +173,7 @@ function applyViewerFilter(filteredElements, hasFilter) {
   if (!hasFilter) {
     viewer.showAll();
     viewer.clearThemingColors(viewer.model);
+    viewer.clearSelection();
     coloringApplied = false;
     document.getElementById('btnColor')?.classList.remove('active');
     return;
@@ -252,9 +183,13 @@ function applyViewerFilter(filteredElements, hasFilter) {
   const allIds = AppState.allElements.map(el => parseInt(el.id)).filter(n => !isNaN(n));
   const hiddenIds = allIds.filter(id => !filteredSet.has(id));
 
+  // Afficher tout puis masquer les non-sélectionnés
   viewer.showAll();
-  if (hiddenIds.length > 0) viewer.hide(hiddenIds);
+  if (hiddenIds.length > 0) {
+    viewer.hide(hiddenIds);
+  }
 
+  // Colorier par statut les éléments filtrés
   viewer.clearThemingColors(viewer.model);
   for (const el of filteredElements) {
     const id = parseInt(el.id);
@@ -265,9 +200,13 @@ function applyViewerFilter(filteredElements, hasFilter) {
   coloringApplied = true;
   document.getElementById('btnColor')?.classList.add('active');
 
+  // Sélectionner + zoomer sur les éléments filtrés
   const filteredArr = [...filteredSet];
   if (filteredArr.length > 0) {
+    viewer.select(filteredArr);
     setTimeout(() => viewer.fitToView(filteredArr), 200);
+  } else {
+    viewer.clearSelection();
   }
 }
 
@@ -282,9 +221,10 @@ function updateQfCount(filtered, total) {
 }
 
 window.resetQuickFilters = function() {
-  ['bloc','chambord','levee','phase'].forEach(key => {
+  ['bloc','zone'].forEach(key => {
     MSState[key].clear();
-    const drop = document.getElementById(`ms${key.charAt(0).toUpperCase()+key.slice(1)}Drop`);
+    const dropId = `ms${key.charAt(0).toUpperCase()+key.slice(1)}Drop`;
+    const drop = document.getElementById(dropId);
     if (drop) {
       drop.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked=false);
       drop.querySelectorAll('.ms-option').forEach(o => o.classList.remove('checked'));
@@ -301,33 +241,20 @@ window.resetQuickFilters = function() {
   AppState.filteredStats  = AppState.stats;
   AppState.filteredLevees = [...AppState.allLevees];
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
+  updateActivityBars(AppState.allElements);
 
-  if (viewer) {
+if (viewer) {
     viewer.showAll();
     viewer.clearThemingColors(viewer.model);
+    viewer.clearSelection();
     coloringApplied = false;
     document.getElementById('btnColor')?.classList.remove('active');
   }
   updateCharts(AppState.stats);
-  renderChambordTable(AppState.stats);
+  renderZoneTable(AppState.stats);
 };
 
 // ── Interactions graphes ──────────────────────────────────────────────────────
-window.onViewerSelection = function(el) {
-  if (!el?.chambord) return;
-  MSState.chambord.clear();
-  const drop = document.getElementById('msChambordDrop');
-  if (drop) {
-    drop.querySelectorAll('.ms-option input').forEach(cb => {
-      const selected = cb.value === el.chambord;
-      cb.checked = selected;
-      cb.closest('.ms-option').classList.toggle('checked', selected);
-      if (selected) MSState.chambord.add(cb.value);
-    });
-  }
-  updateBadge('msChambordBadge','msChambord', MSState.chambord.size);
-  onQuickFilter();
-};
 
 window.onBlocClick = function(bloc) {
   MSState.bloc.clear();
@@ -344,20 +271,20 @@ window.onBlocClick = function(bloc) {
   onQuickFilter();
 };
 
-window.onChambordRowClick = function(chambord, rowEl) {
-  document.querySelectorAll('#chambordBody tr').forEach(r=>r.classList.remove('selected'));
+window.onZoneRowClick = function(zone, rowEl) {
+  document.querySelectorAll('#zoneBody tr').forEach(r=>r.classList.remove('selected'));
   if (rowEl) rowEl.classList.add('selected');
-  MSState.chambord.clear();
-  const drop = document.getElementById('msChambordDrop');
+  MSState.zone.clear();
+  const drop = document.getElementById('msZoneDrop');
   if (drop) {
     drop.querySelectorAll('.ms-option input').forEach(cb => {
-      const selected = cb.value === chambord;
+      const selected = cb.value === zone;
       cb.checked = selected;
       cb.closest('.ms-option').classList.toggle('checked', selected);
-      if (selected) MSState.chambord.add(cb.value);
+      if (selected) MSState.zone.add(cb.value);
     });
   }
-  updateBadge('msChambordBadge','msChambord', MSState.chambord.size);
+  updateBadge('msZoneBadge','msZone', MSState.zone.size);
   onQuickFilter();
 };
 
@@ -369,7 +296,7 @@ window.onStatutClick = function(statut) {
 
 window.resetFilters = function() {
   window.resetQuickFilters();
-  document.querySelectorAll('#chambordBody tr').forEach(r=>r.classList.remove('selected'));
+  document.querySelectorAll('#zoneBody tr').forEach(r=>r.classList.remove('selected'));
   closeDetail();
 };
 

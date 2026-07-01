@@ -13,9 +13,9 @@ const {
   ACC_PROJECT_ID, ACC_MODEL_URN, PORT = 8080,
 } = process.env;
 
-const ACC_FOLDER_URN = 'urn:adsk.wipprod:fs.folder:co.y57lR8imTbuJh37gU440fA';
-const VERSION_URN = 'urn:adsk.wipprod:fs.file:vf.GOLZumHpTkmKPGPXlRR_SA?version=7';
-const VIEWABLE_GUID  = '556b3bf6-c4ad-72fa-a5b6-919051569939';
+const VERSION_URN    = 'urn:adsk.wipprod:fs.file:vf.V3lGW796SNWmD2lGdCFsQw?version=2';
+const VIEWABLE_GUID  = '1024455e-5ea6-a67d-eac9-1257d723d617';
+const ACC_FOLDER_URN = 'urn:adsk.wipprod:fs.folder:co.wCGS1GRTQ9Osfrb_hKFevg';
 
 const DERIVATIVE_URN = Buffer.from(VERSION_URN).toString('base64')
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
@@ -117,7 +117,10 @@ app.get('/api/auth/status', (req, res) => {
 
 app.get('/api/token', async (req, res) => {
   try { res.json({ access_token: await getValidToken(), expires_in: 3600 }); }
-  catch { res.status(401).json({ error: 'NON_AUTHENTIFIE' }); }
+  catch (err) {
+    console.error('[Token] Erreur:', err.message);
+    res.status(401).json({ error: 'NON_AUTHENTIFIE' });
+  }
 });
 
 app.get('/api/config', (req, res) => {

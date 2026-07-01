@@ -253,6 +253,18 @@ body { display:flex; height:100vh; overflow:hidden; }
 .ent-sub  { font-size:10.5px; color:var(--text-muted); }
 .ent-footnote { font-size:10px; color:var(--text-muted); margin-top:auto; font-style:italic; }
 
+/* Activités (Ferraillage / Coulage / Pose) */
+.activity-body { display:flex; flex-direction:column; gap:12px; flex:1; justify-content:center; }
+.activity-item { display:flex; flex-direction:column; gap:5px; }
+.activity-header { display:flex; align-items:center; justify-content:space-between; }
+.activity-name { font-size:13px; font-weight:800; letter-spacing:.03em; color:var(--text-primary); }
+.activity-pct  { font-size:13px; font-weight:700; color:var(--text-primary); }
+.activity-bar-bg { height:10px; background:#E8E4DE; border-radius:5px; overflow:hidden; }
+.activity-bar-fill { height:100%; border-radius:5px; transition:width .6s ease; }
+.activity-bar-ferr { background:#D93025; }
+.activity-bar-coul { background:#3B82C4; }
+.activity-bar-pose { background:#22b07d; }
+
 /* KPI stack */
 .kpi-stack { display:flex; flex-direction:column; gap:0; flex:1; }
 .kpi-stack-item { display:flex; align-items:center; gap:12px; padding:8px 0; }
