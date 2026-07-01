@@ -136,6 +136,16 @@
       </div>
     </div>
     <div class="qf-group">
+      <label class="qf-item-label">Niveau</label>
+      <div class="ms-wrapper" id="msNiveau">
+        <button class="ms-btn" onclick="toggleDropdown('msNiveau')">
+          Tout <span class="ms-badge" id="msNiveauBadge" style="display:none"></span>
+          <svg viewBox="0 0 12 12" fill="currentColor" width="9"><path d="M2 4l4 4 4-4z"/></svg>
+        </button>
+        <div class="ms-dropdown" id="msNiveauDrop"></div>
+      </div>
+    </div>
+    <div class="qf-group">
       <label class="qf-item-label">Statut</label>
       <select class="qf-select" id="filterStatut" onchange="onQuickFilter()">
         <option value="">Tout</option>
@@ -162,15 +172,15 @@
           <div class="kpi-donut-label"><span class="kpi-pct" id="kpiPct">—</span></div>
         </div>
         <div class="global-stats">
-          <div class="global-stat-line">
-            <span class="gsl-label">Levées réalisées</span>
-            <span class="gsl-val" id="kpiRealiseText">— / —</span>
-          </div>
-          <div class="global-stat-line">
-            <span class="gsl-label">Restantes</span>
-            <span class="gsl-val" id="kpiRestant">—</span>
-          </div>
-        </div>
+  <div class="global-stat-line">
+    <span class="gsl-label">Unités Réalisé</span>
+    <span class="gsl-val" id="kpiUnitesRealisees">—</span>
+  </div>
+  <div class="global-stat-line">
+    <span class="gsl-label">Unité Totale</span>
+    <span class="gsl-val" id="kpiUniteTotale">—</span>
+  </div>
+</div>
       </div>
     </div>
 

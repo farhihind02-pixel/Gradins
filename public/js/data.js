@@ -51,7 +51,7 @@ async function loadDataFromViewer(viewer) {
   return new Promise((resolve, reject) => {
     viewer.model.getBulkProperties(
       null,
-      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume'] },
+      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','ME_ELEMENT SUB ZONE','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume'] },
       (results) => {
         AppState.allElements = [];
         AppState.dbIdMap.clear();
@@ -122,6 +122,7 @@ function normalizeElementFromViewer(raw) {
     bloc:      get('BB_Bloc', 'Bloc', 'bloc') ? String(get('BB_Bloc', 'Bloc','bloc')).trim() : null,
     zone:      get('YE_Zone', 'Zone', 'zone') ? String(get('YE_Zone', 'Zone','zone')).trim() : null,
     level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
+    niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
     ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
     coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
     pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
@@ -153,7 +154,7 @@ function buildLeveesFromElements(elements) {
   for (const el of elements) {
     const level = el.level || 'L?';
     const key   = `${el.bloc}|${el.zone}|${level}`;
-    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, level, statuts: [], nb_elements: 0 };
+    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, niveau: el.niveau, level, statuts: [], nb_elements: 0 };
     dict[key].statuts.push(el.statut);
     dict[key].nb_elements++;
   }
@@ -161,6 +162,7 @@ function buildLeveesFromElements(elements) {
     key:         d.key,
     bloc:        d.bloc,
     zone:        d.zone,
+    niveau:      d.niveau,
     level:       d.level,
     statut:      leveeStatus(d.statuts),
     nb_elements: d.nb_elements,
@@ -183,6 +185,7 @@ function computeStats(levees) {
   const byStatut = { realise:0, en_cours:0, non_realise:0, non_concerne:0 };
   const byBloc   = {};
   const byZone   = {};
+  const byNiveau = {};
 
   for (const l of levees) {
     byStatut[l.statut] = (byStatut[l.statut]||0) + 1;
@@ -197,6 +200,11 @@ function computeStats(levees) {
       byZone[l.zone].total++;
       byZone[l.zone][l.statut] = (byZone[l.zone][l.statut]||0) + 1;
     }
+    if (l.niveau) {
+      if (!byNiveau[l.niveau]) byNiveau[l.niveau] = { total:0, realise:0, en_cours:0, non_realise:0, non_concerne:0 };
+      byNiveau[l.niveau].total++;
+      byNiveau[l.niveau][l.statut] = (byNiveau[l.niveau][l.statut]||0) + 1;
+    }
   }
 
   return {
@@ -204,6 +212,7 @@ function computeStats(levees) {
     byStatut,
     byBloc,
     byZone,
+    byNiveau,
     pctGlobal: total > 0 ? Math.round((byStatut.realise / total) * 100) : 0,
   };
 }
@@ -214,6 +223,7 @@ function applyFilter(type, value) {
   const filtered = AppState.allLevees.filter(l => {
     if (type === 'bloc')     return l.bloc === value;
     if (type === 'zone')     return l.zone === value;
+    if (type === 'niveau')   return l.niveau === value;
     if (type === 'statut')   return l.statut === value;
     return true;
   });
@@ -241,6 +251,7 @@ function getDbIdsForFilter(type, value) {
     .filter(el => {
       if (type === 'bloc')     return el.bloc === value;
       if (type === 'zone')     return el.zone === value;
+      if (type === 'niveau')   return el.niveau === value;
       if (type === 'statut')   return el.statut === value;
       return false;
     })
@@ -248,8 +259,6 @@ function getDbIdsForFilter(type, value) {
     .filter(Boolean);
 }
 
-// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
-// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 // ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 // Les 3 activités sont calculées en VOLUME (pas en nombre d'éléments) :
 // % = somme(Volume des éléments où l'étape est effectuée) / somme(Volume de TOUS les éléments)

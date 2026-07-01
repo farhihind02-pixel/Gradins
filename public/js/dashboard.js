@@ -6,6 +6,7 @@
 const MSState = {
   bloc:     new Set(),
   zone:     new Set(),
+  niveau:   new Set(),
   statut:   '',
 };
 
@@ -52,11 +53,11 @@ window.onViewerReady = async function(viewerInst) {
   updateActivityBars(AppState.allElements);
   renderZoneTable(AppState.stats);
   // Vider et reconstruire les dropdowns avec les vraies données du viewer
-  ['msBlocDrop','msZoneDrop'].forEach(id => {
+  ['msBlocDrop','msZoneDrop','msNiveauDrop'].forEach(id => {
     const drop = document.getElementById(id);
     if (drop) drop.innerHTML = '';
   });
-  MSState.bloc.clear(); MSState.zone.clear();
+  MSState.bloc.clear(); MSState.zone.clear(); MSState.niveau.clear();
   initMultiSelects(AppState.stats);
 };
 
@@ -131,6 +132,10 @@ function initMultiSelects(stats) {
   const zones = Object.keys(stats.byZone).sort();
   buildMultiSelect('msZone','msZoneDrop','msZoneBadge', zones, z=>z, 'zone');
 
+  // Niveaux (ME_ELEMENT SUB ZONE : UT, MT, LT)
+  const niveaux = Object.keys(stats.byNiveau).sort();
+  buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n=>n, 'niveau');
+
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
 }
 
@@ -142,6 +147,7 @@ window.onQuickFilter = function() {
   const filteredLevees = AppState.allLevees.filter(l => {
     if (MSState.bloc.size>0     && !MSState.bloc.has(l.bloc))                return false;
     if (MSState.zone.size>0     && !MSState.zone.has(l.zone))                return false;
+    if (MSState.niveau.size>0   && !MSState.niveau.has(l.niveau))            return false;
     if (statut && l.statut !== statut)                                        return false;
     return true;
   });
@@ -158,13 +164,14 @@ window.onQuickFilter = function() {
   const filteredElements = AppState.allElements.filter(el => {
     if (MSState.bloc.size>0     && !MSState.bloc.has(el.bloc))               return false;
     if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
+    if (MSState.niveau.size>0   && !MSState.niveau.has(el.niveau))           return false;
     if (statut && el.statut !== statut)                                        return false;
     return true;
   });
 
   updateActivityBars(filteredElements);
 
-  const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||!!statut;
+  const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||MSState.niveau.size>0||!!statut;
   applyViewerFilter(filteredElements, hasFilter);
 };
 
@@ -221,7 +228,7 @@ function updateQfCount(filtered, total) {
 }
 
 window.resetQuickFilters = function() {
-  ['bloc','zone'].forEach(key => {
+  ['bloc','zone','niveau'].forEach(key => {
     MSState[key].clear();
     const dropId = `ms${key.charAt(0).toUpperCase()+key.slice(1)}Drop`;
     const drop = document.getElementById(dropId);

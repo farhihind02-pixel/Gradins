@@ -43,13 +43,11 @@ function updateKpiDonut(stats) {
 
 // ── KPI Values ──────────────────────────────────────────────────────────────
 function updateKPIs(stats) {
-  const { total, byStatut, pctGlobal } = stats;
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('kpiPct',        `${pctGlobal}%`);
-  set('kpiRealiseText',`${(byStatut.realise||0).toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}`);
-  set('kpiRestant',    (total-(byStatut.realise||0)).toLocaleString('fr-FR'));
+  // Le % global et les unités sont désormais calculés dans updateActivityBars
+  // à partir de BB POSE, pas des levées — voir plus bas.
 }
 
+// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 // ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 function updateActivityBars(elements) {
   const stats = computeActivityStats(elements || []);
@@ -58,6 +56,23 @@ function updateActivityBars(elements) {
   set('ferrPct', `${stats.ferr.pct}%`); setW('ferrBar', stats.ferr.pct);
   set('coulPct', `${stats.coul.pct}%`); setW('coulBar', stats.coul.pct);
   set('posePct', `${stats.pose.pct}%`); setW('poseBar', stats.pose.pct);
+
+  // Unités Réalisé / Unité Totale (basé sur BB POSE) + % global = Réalisé / Totale
+  const els = elements || [];
+  const unitesRealisees = els.filter(el => el.pose === 1).length;
+  const uniteTotale     = els.filter(el => el.pose === 0 || el.pose === 1).length;
+  const pctUnites       = uniteTotale > 0 ? Math.round((unitesRealisees / uniteTotale) * 100) : 0;
+
+  set('kpiUnitesRealisees', unitesRealisees.toLocaleString('fr-FR'));
+  set('kpiUniteTotale', uniteTotale.toLocaleString('fr-FR'));
+  set('kpiPct', `${pctUnites}%`);
+  updateKpiDonutValue(pctUnites);
+}
+
+function updateKpiDonutValue(pct) {
+  if (!kpiDonutChart) return;
+  kpiDonutChart.data.datasets[0].data = [pct, 100 - pct];
+  kpiDonutChart.update();
 }
 
 // ── Enterprise ──────────────────────────────────────────────────────────────
