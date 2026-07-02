@@ -187,14 +187,10 @@ function applyViewerFilter(filteredElements, hasFilter) {
   }
 
   const filteredSet = new Set(filteredElements.map(el => parseInt(el.id)).filter(n => !isNaN(n)));
-  const allIds = AppState.allElements.map(el => parseInt(el.id)).filter(n => !isNaN(n));
-  const hiddenIds = allIds.filter(id => !filteredSet.has(id));
+  const filteredArr = [...filteredSet];
 
-  // Afficher tout puis masquer les non-sélectionnés
-  viewer.showAll();
-  if (hiddenIds.length > 0) {
-    viewer.hide(hiddenIds);
-  }
+  // Isoler (au lieu de showAll+hide) : plus fiable sur les gros modèles HLOD
+  viewer.isolate(filteredArr);
 
   // Colorier par statut les éléments filtrés
   viewer.clearThemingColors(viewer.model);
@@ -207,13 +203,10 @@ function applyViewerFilter(filteredElements, hasFilter) {
   coloringApplied = true;
   document.getElementById('btnColor')?.classList.add('active');
 
-  // Sélectionner + zoomer sur les éléments filtrés
-  const filteredArr = [...filteredSet];
+  // Zoomer sur les éléments filtrés
+  viewer.clearSelection();
   if (filteredArr.length > 0) {
-    viewer.select(filteredArr);
     setTimeout(() => viewer.fitToView(filteredArr), 200);
-  } else {
-    viewer.clearSelection();
   }
 }
 
