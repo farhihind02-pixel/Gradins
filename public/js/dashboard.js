@@ -132,10 +132,11 @@ function initMultiSelects(stats) {
   const zones = Object.keys(stats.byZone).sort();
   buildMultiSelect('msZone','msZoneDrop','msZoneBadge', zones, z=>z, 'zone');
 
-  // Niveaux (ME_ELEMENT SUB ZONE) — uniquement LT, MT, UT, dans cet ordre
+  // Niveaux (ME_ELEMENT SUB ZONE) — uniquement LT, MT, UT, dans cet ordre, avec libellés en français
   const NIVEAU_ORDER = ['LT', 'MT', 'UT'];
+  const NIVEAU_LABELS = { LT: 'Inférieur', MT: 'Intermédiaire', UT: 'Supérieur' };
   const niveaux = NIVEAU_ORDER.filter(n => stats.byNiveau[n]);
-  buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n=>n, 'niveau');
+  buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n => NIVEAU_LABELS[n] || n, 'niveau');
 
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
 }
