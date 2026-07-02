@@ -2,9 +2,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --sgtm-orange:    #E87722;
-  --sgtm-orange-dk: #C4601A;
-  --sgtm-orange-lt: rgba(232,119,34,0.1);
+  --sgtm-orange:    #22b07d;
+  --sgtm-orange-dk: #1a8a63;
+  --sgtm-orange-lt: rgba(34,176,125,0.1);
   --sgtm-gray:      #4A4A4A;
   --sidebar-bg:     #1E1E1E;
   --topbar-bg:      #1E1E1E;
@@ -282,7 +282,7 @@ body { display:flex; height:100vh; overflow:hidden; }
 /* ===== BOTTOM ROW ===== */
 .bottom-row {
   display:grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 0.75fr 1.25fr;
   gap:10px;
   padding:10px 14px 10px;
   flex:1; min-height:0; overflow:hidden;
@@ -313,6 +313,26 @@ body { display:flex; height:100vh; overflow:hidden; }
 .progress-pct  { font-size:10.5px; font-weight:600; color:var(--text-secondary); min-width:26px; text-align:right; }
 
 .table-footer { padding:7px 12px; font-size:11px; color:var(--text-muted); border-top:1px solid var(--panel-border); flex-shrink:0; }
+
+/* Faire en sorte que les lignes du tableau AVANCEMENT PAR BLOC remplissent tout l'espace vertical */
+.bottom-left .table-wrap { display:flex; flex-direction:column; }
+.bottom-left .data-table { display:flex; flex-direction:column; flex:1; width:100%; }
+.bottom-left .data-table thead { display:flex; flex-direction:column; flex-shrink:0; }
+.bottom-left .data-table thead tr { display:flex; width:100%; }
+.bottom-left .data-table thead th { flex:1; }
+.bottom-left .data-table tbody { display:flex; flex-direction:column; flex:1; }
+.bottom-left .data-table tbody tr { display:flex; flex:1; align-items:center; }
+.bottom-left .data-table tbody td { flex:1; display:flex; align-items:center; }
+
+/* Lignes verticales entre les colonnes du tableau AVANCEMENT PAR BLOC ET PAR ACTIVITÉ */
+.bottom-left .data-table th,
+.bottom-left .data-table td {
+  border-right: 1px solid var(--panel-border);
+}
+.bottom-left .data-table th:last-child,
+.bottom-left .data-table td:last-child {
+  border-right: none;
+}
 
 /* ===== VIEWER ===== */
 .bottom-right { min-height:0; display:flex; flex-direction:column; }

@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const jsonLoaded = await loadDataFromJSON();
   if (jsonLoaded && AppState.stats) {
     initCharts(AppState.stats);
+    AppState.filteredElements = [...AppState.allElements];
     updateActivityBars(AppState.allElements);
-    renderZoneTable(AppState.stats);
     initMultiSelects(AppState.stats);
   }
 
@@ -50,8 +50,8 @@ window.onViewerReady = async function(viewerInst) {
   // Toujours recharger depuis le viewer et reconstruire les filtres
   await loadDataFromViewer(viewerInst);
   initCharts(AppState.stats);
+  AppState.filteredElements = [...AppState.allElements];
   updateActivityBars(AppState.allElements);
-  renderZoneTable(AppState.stats);
   // Vider et reconstruire les dropdowns avec les vraies données du viewer
   ['msBlocDrop','msZoneDrop','msNiveauDrop'].forEach(id => {
     const drop = document.getElementById(id);
@@ -157,7 +157,6 @@ window.onQuickFilter = function() {
   AppState.filteredLevees = filteredLevees;
 
   updateCharts(filteredStats);
-  renderZoneTable(filteredStats);
   updateQfCount(filteredLevees.length, AppState.allLevees.length);
 
   // Éléments pour le viewer
@@ -169,6 +168,7 @@ window.onQuickFilter = function() {
     return true;
   });
 
+  AppState.filteredElements = filteredElements;
   updateActivityBars(filteredElements);
 
   const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||MSState.niveau.size>0||!!statut;
@@ -248,6 +248,7 @@ window.resetQuickFilters = function() {
   AppState.filteredStats  = AppState.stats;
   AppState.filteredLevees = [...AppState.allLevees];
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
+  AppState.filteredElements = [...AppState.allElements];
   updateActivityBars(AppState.allElements);
 
 if (viewer) {
@@ -258,7 +259,6 @@ if (viewer) {
     document.getElementById('btnColor')?.classList.remove('active');
   }
   updateCharts(AppState.stats);
-  renderZoneTable(AppState.stats);
 };
 
 // ── Interactions graphes ──────────────────────────────────────────────────────
@@ -278,23 +278,6 @@ window.onBlocClick = function(bloc) {
   onQuickFilter();
 };
 
-window.onZoneRowClick = function(zone, rowEl) {
-  document.querySelectorAll('#zoneBody tr').forEach(r=>r.classList.remove('selected'));
-  if (rowEl) rowEl.classList.add('selected');
-  MSState.zone.clear();
-  const drop = document.getElementById('msZoneDrop');
-  if (drop) {
-    drop.querySelectorAll('.ms-option input').forEach(cb => {
-      const selected = cb.value === zone;
-      cb.checked = selected;
-      cb.closest('.ms-option').classList.toggle('checked', selected);
-      if (selected) MSState.zone.add(cb.value);
-    });
-  }
-  updateBadge('msZoneBadge','msZone', MSState.zone.size);
-  onQuickFilter();
-};
-
 window.onStatutClick = function(statut) {
   const sel = document.getElementById('filterStatut');
   if (sel) { sel.value=statut; sel.classList.add('has-value'); }
@@ -303,7 +286,6 @@ window.onStatutClick = function(statut) {
 
 window.resetFilters = function() {
   window.resetQuickFilters();
-  document.querySelectorAll('#zoneBody tr').forEach(r=>r.classList.remove('selected'));
   closeDetail();
 };
 

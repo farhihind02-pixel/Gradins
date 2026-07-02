@@ -289,3 +289,35 @@ function computeActivityStats(elements) {
     pose: { label: 'Pose',        doneVolume: poseVolume, totalVolume, pct: pct(poseVolume) },
   };
 }
+
+// ── Avancement par Bloc et par Activité (même logique, groupée par Bloc) ─────
+function computeBlocActivityStats(elements) {
+  const byBloc = {};
+  for (const el of (elements || [])) {
+    if (!el.bloc) continue;
+    if (!byBloc[el.bloc]) byBloc[el.bloc] = { ferrVolume:0, coulVolume:0, poseVolume:0, totalVolume:0 };
+    const v = el.volume || 0;
+    const d = byBloc[el.bloc];
+    d.totalVolume += v;
+
+    const effFerr = el.pose === 1 || el.coul === 1 || el.ferr === 1;
+    if (effFerr) d.ferrVolume += v;
+
+    const effCoul = el.pose === 1 || el.coul === 1;
+    if (effCoul) d.coulVolume += v;
+
+    if (el.pose === 1) d.poseVolume += v;
+  }
+
+  const result = {};
+  for (const [bloc, d] of Object.entries(byBloc)) {
+    const pct = (v) => d.totalVolume > 0 ? Math.round((v / d.totalVolume) * 100) : 0;
+    result[bloc] = {
+      ferrPct: pct(d.ferrVolume),
+      coulPct: pct(d.coulVolume),
+      posePct: pct(d.poseVolume), // = avancement global du bloc (même métrique que Pose)
+      totalVolume: d.totalVolume,
+    };
+  }
+  return result;
+}

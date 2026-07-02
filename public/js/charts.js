@@ -5,21 +5,17 @@ let kpiDonutChart=null, blocChart=null;
 
 // Blocs SGTM vs TGCC
 const SGTM_BLOCS = new Set(['1','2','3']);
-const TGCC_BLOCS = new Set(['4']);
+const TGCC_BLOCS = new Set(['TGCC']);
 
 function initCharts(stats) {
   initKpiDonut(stats);
-  initBlocChart(stats);
   updateKPIs(stats);
-  updateEnterprise(stats);
 }
 
 function updateCharts(stats) {
   if (!stats) return;
   updateKPIs(stats);
   updateKpiDonut(stats);
-  if (!blocChart) initBlocChart(stats); else updateBlocChartData(stats);
-  updateEnterprise(stats);
 }
 
 // ── KPI Donut ──────────────────────────────────────────────────────────────
@@ -30,7 +26,7 @@ function initKpiDonut(stats) {
   const pct = stats.pctGlobal||0;
   kpiDonutChart = new Chart(ctx, {
     type:'doughnut',
-    data:{ datasets:[{ data:[pct,100-pct], backgroundColor:['#E87722','#E5E2DC'], borderWidth:0 }] },
+    data:{ datasets:[{ data:[pct,100-pct], backgroundColor:['#22b07d','#E5E2DC'], borderWidth:0 }] },
     options:{ responsive:true, cutout:'80%', animation:{duration:700}, plugins:{legend:{display:false},tooltip:{enabled:false}} },
   });
 }
@@ -47,7 +43,6 @@ function updateKPIs(stats) {
   // à partir de BB POSE, pas des levées — voir plus bas.
 }
 
-// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 // ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 function updateActivityBars(elements) {
   const stats = computeActivityStats(elements || []);
@@ -67,6 +62,10 @@ function updateActivityBars(elements) {
   set('kpiUniteTotale', uniteTotale.toLocaleString('fr-FR'));
   set('kpiPct', `${pctUnites}%`);
   updateKpiDonutValue(pctUnites);
+
+  updateEnterprise(elements);
+  updateBlocChartData(elements);
+  renderBlocActivityTable(elements);
 }
 
 function updateKpiDonutValue(pct) {
@@ -76,11 +75,13 @@ function updateKpiDonutValue(pct) {
 }
 
 // ── Enterprise ──────────────────────────────────────────────────────────────
-function updateEnterprise(stats) {
+// SGTM = Blocs 1+2+3, TGCC = Bloc "TGCC" — même métrique que AVANCEMENT GLOBAL (BB POSE)
+function updateEnterprise(elements) {
   let sgtmReal=0, sgtmTot=0, tgccReal=0, tgccTot=0;
-  for (const [bloc, d] of Object.entries(stats.byBloc||{})) {
-    if (SGTM_BLOCS.has(bloc)) { sgtmReal+=d.realise||0; sgtmTot+=d.total||0; }
-    if (TGCC_BLOCS.has(bloc)) { tgccReal+=d.realise||0; tgccTot+=d.total||0; }
+  for (const el of (elements || [])) {
+    if (el.pose !== 0 && el.pose !== 1) continue; // exclut les éléments où BB POSE n'est pas renseigné
+    if (SGTM_BLOCS.has(el.bloc)) { sgtmTot++; if (el.pose === 1) sgtmReal++; }
+    if (TGCC_BLOCS.has(el.bloc)) { tgccTot++; if (el.pose === 1) tgccReal++; }
   }
   const sgtmPct = sgtmTot>0 ? Math.round(sgtmReal/sgtmTot*100) : 0;
   const tgccPct = tgccTot>0 ? Math.round(tgccReal/tgccTot*100) : 0;
@@ -90,104 +91,107 @@ function updateEnterprise(stats) {
   set('tgccPct',`${tgccPct}%`); setW('tgccBar',tgccPct);
 }
 
-// ── Bloc Chart ──────────────────────────────────────────────────────────────
-function initBlocChart(stats) {
+// ── Bloc Chart (Unités Totale / Unités Réalisé, basé sur BB POSE) ────────────
+function computeBlocUnitStats(elements) {
+  const byBloc = {};
+  for (const el of (elements || [])) {
+    if (el.pose !== 0 && el.pose !== 1) continue; // exclut BB POSE non renseigné
+    if (!el.bloc) continue;
+    if (!byBloc[el.bloc]) byBloc[el.bloc] = { total: 0, realise: 0 };
+    byBloc[el.bloc].total++;
+    if (el.pose === 1) byBloc[el.bloc].realise++;
+  }
+  return byBloc;
+}
+
+function initBlocChart(elements) {
   const ctx = document.getElementById('blocChart');
   if (!ctx) return;
   if (blocChart) { blocChart.destroy(); blocChart=null; }
-  if (!stats.byBloc || !Object.keys(stats.byBloc).length) return;
-  const metric = document.getElementById('blocMetric')?.value||'pct';
-  const blocs  = Object.keys(stats.byBloc).sort();
-  const {labels,datasets} = getBlocData(stats,blocs,metric);
-  blocChart = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:getBlocOptions(metric) });
+  const byBloc = computeBlocUnitStats(elements);
+  if (!Object.keys(byBloc).length) return;
+  const blocs = Object.keys(byBloc).sort();
+  const {labels,datasets} = getBlocData(byBloc, blocs);
+  blocChart = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:getBlocOptions() });
 }
 
-function getBlocData(stats,blocs,metric) {
-  const labels=blocs.map(b=>`Bloc ${b}`);
-  if (metric==='pct') {
-    return {
-      labels,
-      datasets:[
-        { label:'Réalisé', data:blocs.map(b=>stats.byBloc[b]?.realise||0),
-          backgroundColor:'#E87722', borderRadius:4, borderSkipped:false },
-        { label:'Total', data:blocs.map(b=>stats.byBloc[b]?.total||0),
-          backgroundColor:'#8A8480', borderRadius:4, borderSkipped:false },
-      ]
-    };
-  }
+function getBlocData(byBloc, blocs) {
+  const labels = blocs.map(b => b === 'TGCC' ? 'Bloc TGCC' : `Bloc ${b}`);
   return {
     labels,
-    datasets:[
-      { label:'Réalisé',     data:blocs.map(b=>stats.byBloc[b]?.realise||0),      backgroundColor:'#22b07d', borderRadius:4, stack:'s' },
+    datasets: [
+      { label:'Unités Réalisé', data: blocs.map(b => byBloc[b]?.realise || 0),
+        backgroundColor:'#22b07d', borderRadius:4, borderSkipped:false },
+      { label:'Unités Totale',  data: blocs.map(b => byBloc[b]?.total   || 0),
+        backgroundColor:'#8A8480', borderRadius:4, borderSkipped:false },
     ]
   };
 }
 
-function getBlocOptions(metric) {
+function getBlocOptions() {
   return {
     responsive:true, maintainAspectRatio:false, animation:{duration:400},
     onClick:(evt,els)=>{ if(els.length&&window.onBlocClick) window.onBlocClick(blocChart.data.labels[els[0].index].replace('Bloc ','')); },
     plugins:{
       legend:{ display:true, position:'bottom', labels:{font:{size:10},boxWidth:10,padding:6,color:'#6B6B6B'} },
-      tooltip:{ callbacks:{ label:ctx=> ` ${ctx.parsed.y.toLocaleString('fr-FR')} levées` } },
+      tooltip:{ callbacks:{ label:ctx=> ` ${ctx.parsed.y.toLocaleString('fr-FR')} unités` } },
     },
     scales:{
-      x:{ grid:{display:false}, ticks:{font:{size:10},color:'#888'}, stacked:metric==='abs' },
-      y:{ grid:{color:'#F0EFED'}, ticks:{font:{size:10},color:'#AAA'}, stacked:metric==='abs' },
+      x:{ grid:{display:false}, ticks:{font:{size:10},color:'#888'} },
+      y:{ grid:{color:'#F0EFED'}, ticks:{font:{size:10},color:'#AAA'} },
     },
   };
 }
 
 window.updateBlocChart = function() {
-  const stats=AppState.filteredStats||AppState.stats;
-  if (!stats) return;
-  if (blocChart) { blocChart.destroy(); blocChart=null; }
-  initBlocChart(stats);
+  updateBlocChartData(AppState.filteredElements || AppState.allElements);
 };
 
-function updateBlocChartData(stats) {
-  if (!stats?.byBloc||!Object.keys(stats.byBloc).length) return;
-  if (!blocChart) { initBlocChart(stats); return; }
-  const metric=document.getElementById('blocMetric')?.value||'pct';
-  const blocs=Object.keys(stats.byBloc).sort();
-  const {labels,datasets}=getBlocData(stats,blocs,metric);
-  blocChart.data.labels=labels;
-  blocChart.data.datasets=datasets;
-  blocChart.options=getBlocOptions(metric);
+function updateBlocChartData(elements) {
+  const byBloc = computeBlocUnitStats(elements);
+  if (!Object.keys(byBloc).length) { if (blocChart) { blocChart.destroy(); blocChart=null; } return; }
+  if (!blocChart) { initBlocChart(elements); return; }
+  const blocs = Object.keys(byBloc).sort();
+  const {labels,datasets} = getBlocData(byBloc, blocs);
+  blocChart.data.labels = labels;
+  blocChart.data.datasets = datasets;
   blocChart.update();
 }
 
-// ── Table Zone ────────────────────────────────────────────────────────────────
-function renderZoneTable(stats, filterText='') {
-  const tbody=document.getElementById('zoneBody');
-  const footer=document.getElementById('tableFooter');
+// ── Table Bloc et Activité ─────────────────────────────────────────────────────
+function renderBlocActivityTable(elements) {
+  const tbody = document.getElementById('blocActivityBody');
+  const footer = document.getElementById('tableFooter');
   if (!tbody) return;
 
-  const rows=Object.entries(stats.byZone||{})
-    .filter(([name])=>name.toLowerCase().includes(filterText.toLowerCase()))
-    .sort(([a],[b])=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0)||a.localeCompare(b));
+  const byBloc = computeBlocActivityStats(elements || []);
+  const blocs = Object.keys(byBloc).sort((a, b) => {
+    if (a === 'TGCC') return 1;
+    if (b === 'TGCC') return -1;
+    return a.localeCompare(b, undefined, { numeric: true });
+  });
 
-  tbody.innerHTML=rows.map(([name,d])=>{
-    const pct=d.total>0?Math.round(d.realise/d.total*100):0;
-    const barCol=pct>=70?'#22b07d':pct>=40?'#E87722':'#D93025';
-    return `<tr data-zone="${name}" onclick="if(window.onZoneRowClick)window.onZoneRowClick('${name}',this)">
-      <td><strong>${name}</strong></td>
-      <td>${d.total}</td>
-      <td style="color:#22b07d;font-weight:600">${d.realise||0}</td>
-      <td>
-        <div class="progress-bar-cell">
-          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${barCol}"></div></div>
-          <span class="progress-pct" style="color:${barCol}">${pct}%</span>
-        </div>
-      </td>
+  tbody.innerHTML = blocs.map(b => {
+    const d = byBloc[b];
+    const label = b === 'TGCC' ? 'Bloc TGCC' : `Bloc ${b}`;
+    return `<tr data-bloc="${b}" onclick="if(window.onBlocClick)window.onBlocClick('${b}')">
+      <td><strong>${label}</strong></td>
+      <td style="color:#D93025;font-weight:700">${d.ferrPct}%</td>
+      <td style="color:#3B82C4;font-weight:700">${d.coulPct}%</td>
+      <td style="color:#22b07d;font-weight:700">${d.posePct}%</td>
+      <td style="color:#22b07d;font-weight:800">${d.posePct}%</td>
     </tr>`;
   }).join('');
 
-  if (footer) footer.textContent=`Affichage de 1 à ${rows.length} sur ${Object.keys(stats.byZone||{}).length} zones`;
-}
+  // Ligne TOTAL = calcul global (tous blocs confondus)
+  const g = computeActivityStats(elements || []);
+  tbody.innerHTML += `<tr style="background:#eef7f1;font-weight:700;cursor:default" onclick="event.stopPropagation()">
+    <td>TOTAL</td>
+    <td style="color:#D93025">${g.ferr.pct}%</td>
+    <td style="color:#3B82C4">${g.coul.pct}%</td>
+    <td style="color:#22b07d">${g.pose.pct}%</td>
+    <td style="color:#22b07d">${g.pose.pct}%</td>
+  </tr>`;
 
-window.filterZoneTable=function(){
-  const ft=document.getElementById('zoneSearch')?.value||'';
-  const stats=AppState.filteredStats||AppState.stats;
-  if(stats) renderZoneTable(stats,ft);
-};
+  if (footer) footer.textContent = `${blocs.length} bloc(s)`;
+}

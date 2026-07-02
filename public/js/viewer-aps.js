@@ -73,7 +73,7 @@ async function initAPSViewer() {
     viewer.setGroundShadow(true);
     viewer.setProgressiveRendering(true);
     viewer.setOptimizeNavigation(false);
-
+    viewer.setGhosting(false);   // ← désactive le fondu en transparence des éléments non sélectionnés
     setLoaderProgress(55);
     setLoaderText('Chargement du modèle ACC…');
 

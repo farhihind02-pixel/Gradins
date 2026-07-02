@@ -161,125 +161,126 @@
   </div>
 
   <!-- ROW 1: 4 grandes cartes -->
-  <section class="top-row">
+  <!-- ROW 1: 4 grandes cartes -->
+<!-- ROW 1: 4 grandes cartes -->
+<section class="top-row">
 
-    <!-- 1. Avancement Global -->
-    <div class="panel top-card">
-      <div class="panel-title-sm">AVANCEMENT GLOBAL</div>
-      <div class="global-card-body">
-        <div class="kpi-donut-wrap">
-          <canvas id="kpiDonut" width="110" height="110"></canvas>
-          <div class="kpi-donut-label"><span class="kpi-pct" id="kpiPct">—</span></div>
+  <!-- 1. Avancement Global -->
+  <div class="panel top-card">
+    <div class="panel-title-sm">AVANCEMENT GLOBAL</div>
+    <div class="global-card-body">
+      <div class="kpi-donut-wrap">
+        <canvas id="kpiDonut" width="110" height="110"></canvas>
+        <div class="kpi-donut-label"><span class="kpi-pct" id="kpiPct">—</span></div>
+      </div>
+      <div class="global-stats">
+        <div class="global-stat-line">
+          <span class="gsl-label">Unités Réalisé</span>
+          <span class="gsl-val" id="kpiUnitesRealisees">—</span>
         </div>
-        <div class="global-stats">
-  <div class="global-stat-line">
-    <span class="gsl-label">Unités Réalisé</span>
-    <span class="gsl-val" id="kpiUnitesRealisees">—</span>
+        <div class="global-stat-line">
+          <span class="gsl-label">Unité Totale</span>
+          <span class="gsl-val" id="kpiUniteTotale">—</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="global-stat-line">
-    <span class="gsl-label">Unité Totale</span>
-    <span class="gsl-val" id="kpiUniteTotale">—</span>
+
+  <!-- 2. Avancement par Activité -->
+  <div class="panel top-card">
+    <div class="panel-title-sm">AVANCEMENT PAR ACTIVITÉ</div>
+    <div class="activity-body">
+      <div class="activity-item">
+        <div class="activity-header">
+          <span class="activity-name">Ferraillage</span>
+          <span class="activity-pct" id="ferrPct">—</span>
+        </div>
+        <div class="activity-bar-bg">
+          <div class="activity-bar-fill activity-bar-ferr" id="ferrBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="activity-item">
+        <div class="activity-header">
+          <span class="activity-name">Coulage</span>
+          <span class="activity-pct" id="coulPct">—</span>
+        </div>
+        <div class="activity-bar-bg">
+          <div class="activity-bar-fill activity-bar-coul" id="coulBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="activity-item">
+        <div class="activity-header">
+          <span class="activity-name">Pose</span>
+          <span class="activity-pct" id="posePct">—</span>
+        </div>
+        <div class="activity-bar-bg">
+          <div class="activity-bar-fill activity-bar-pose" id="poseBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-      </div>
+
+  <!-- 3. Avancement par Bloc (anciennement en position 4, chart intégré) -->
+  <div class="panel top-card top-card-wide">
+    <div class="panel-header-row">
+      <div class="panel-title-sm">AVANCEMENT PAR BLOC</div>
+      <select class="panel-select" id="blocMetric" onchange="updateBlocChart()">
+        <option value="pct">% Réalisé</option>
+        <option value="abs">Valeurs absolues</option>
+      </select>
     </div>
+    <div class="bloc-chart-wrap"><canvas id="blocChart"></canvas></div>
+  </div>
 
-    <!-- 2. Avancement par Bloc (chart intégré) -->
-    <div class="panel top-card top-card-wide">
-      <div class="panel-header-row">
-        <div class="panel-title-sm">AVANCEMENT PAR BLOC</div>
-        <select class="panel-select" id="blocMetric" onchange="updateBlocChart()">
-          <option value="pct">% Réalisé</option>
-          <option value="abs">Valeurs absolues</option>
-        </select>
+  <!-- 4. Avancement Entreprise (anciennement en position 3) -->
+  <div class="panel top-card">
+    <div class="panel-title-sm">AVANCEMENT ENTREPRISE</div>
+    <div class="enterprise-body">
+      <div class="enterprise-item">
+        <div class="ent-header">
+          <span class="ent-name sgtm-name">SGTM</span>
+          <span class="ent-pct" id="sgtmPct">—</span>
+        </div>
+        <div class="ent-bar-bg">
+          <div class="ent-bar-fill ent-bar-sgtm" id="sgtmBar" style="width:0%"></div>
+        </div>
+
       </div>
-      <div class="bloc-chart-wrap"><canvas id="blocChart"></canvas></div>
-    </div>
-
-    <!-- 3. Avancement Entreprise -->
-    <div class="panel top-card">
-      <div class="panel-title-sm">AVANCEMENT ENTREPRISE</div>
-      <div class="enterprise-body">
-        <div class="enterprise-item">
-          <div class="ent-header">
-            <span class="ent-name sgtm-name">SGTM</span>
-            <span class="ent-pct" id="sgtmPct">—</span>
-          </div>
-          <div class="ent-bar-bg">
-            <div class="ent-bar-fill ent-bar-sgtm" id="sgtmBar" style="width:0%"></div>
-          </div>
-
+      <div class="enterprise-item">
+        <div class="ent-header">
+          <span class="ent-name tgcc-name">TGCC</span>
+          <span class="ent-pct" id="tgccPct">—</span>
         </div>
-        <div class="enterprise-item">
-          <div class="ent-header">
-            <span class="ent-name tgcc-name">TGCC</span>
-            <span class="ent-pct" id="tgccPct">—</span>
-          </div>
-          <div class="ent-bar-bg">
-            <div class="ent-bar-fill ent-bar-tgcc" id="tgccBar" style="width:0%"></div>
-          </div>
-
+        <div class="ent-bar-bg">
+          <div class="ent-bar-fill ent-bar-tgcc" id="tgccBar" style="width:0%"></div>
         </div>
-        <div class="ent-footnote">Pourcentage de levées réalisées par entreprise</div>
+
       </div>
+      <div class="ent-footnote">Pourcentage de levées réalisées par entreprise</div>
     </div>
+  </div>
 
-    <!-- 4. Avancement par Activité -->
-    <div class="panel top-card">
-      <div class="panel-title-sm">AVANCEMENT PAR ACTIVITÉ</div>
-      <div class="activity-body">
-        <div class="activity-item">
-          <div class="activity-header">
-            <span class="activity-name">Ferraillage</span>
-            <span class="activity-pct" id="ferrPct">—</span>
-          </div>
-          <div class="activity-bar-bg">
-            <div class="activity-bar-fill activity-bar-ferr" id="ferrBar" style="width:0%"></div>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-header">
-            <span class="activity-name">Coulage</span>
-            <span class="activity-pct" id="coulPct">—</span>
-          </div>
-          <div class="activity-bar-bg">
-            <div class="activity-bar-fill activity-bar-coul" id="coulBar" style="width:0%"></div>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-header">
-            <span class="activity-name">Pose</span>
-            <span class="activity-pct" id="posePct">—</span>
-          </div>
-          <div class="activity-bar-bg">
-            <div class="activity-bar-fill activity-bar-pose" id="poseBar" style="width:0%"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- ROW 2: Table Chambord + Maquette -->
+</section>
+  <!-- ROW 2: Table + Maquette -->
   <section class="bottom-row">
 
-  <!-- Table zone -->
+  <!-- Table Bloc et Activité -->
   <div class="panel bottom-left">
     <div class="panel-header-row">
-      <div class="panel-title-sm">AVANCEMENT PAR ZONE</div>
-      <input type="text" class="panel-search" id="zoneSearch" placeholder="Filtrer…" oninput="filterZoneTable()"/>
+      <div class="panel-title-sm">AVANCEMENT PAR BLOC ET PAR ACTIVITÉ</div>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
-            <th>ZONE</th>
-            <th>TOTAL</th>
-            <th>RÉALISÉES</th>
-            <th>%</th>
+            <th>BLOC</th>
+            <th>FERRAILLAGE %</th>
+            <th>COULAGE %</th>
+            <th>POSE %</th>
+            <th>AVANCEMENT GLOBAL %</th>
           </tr>
         </thead>
-        <tbody id="zoneBody"></tbody>
+        <tbody id="blocActivityBody"></tbody>
       </table>
     </div>
     <div class="table-footer" id="tableFooter"></div>
