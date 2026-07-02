@@ -132,8 +132,9 @@ function initMultiSelects(stats) {
   const zones = Object.keys(stats.byZone).sort();
   buildMultiSelect('msZone','msZoneDrop','msZoneBadge', zones, z=>z, 'zone');
 
-  // Niveaux (ME_ELEMENT SUB ZONE : UT, MT, LT)
-  const niveaux = Object.keys(stats.byNiveau).sort();
+  // Niveaux (ME_ELEMENT SUB ZONE) — uniquement LT, MT, UT, dans cet ordre
+  const NIVEAU_ORDER = ['LT', 'MT', 'UT'];
+  const niveaux = NIVEAU_ORDER.filter(n => stats.byNiveau[n]);
   buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n=>n, 'niveau');
 
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
