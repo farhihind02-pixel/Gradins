@@ -134,7 +134,7 @@ function initMultiSelects(stats) {
 
   // Niveaux (ME_ELEMENT SUB ZONE) — uniquement LT, MT, UT, dans cet ordre, avec libellés en français
   const NIVEAU_ORDER = ['LT', 'MT', 'UT'];
-  const NIVEAU_LABELS = { LT: 'Inférieur', MT: 'Intermédiaire', UT: 'Supérieur' };
+  const NIVEAU_LABELS = { LT: 'INF', MT: 'INT', UT: 'SUP' };
   const niveaux = NIVEAU_ORDER.filter(n => stats.byNiveau[n]);
   buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n => NIVEAU_LABELS[n] || n, 'niveau');
 

@@ -225,9 +225,6 @@ function filterViewerByBloc(bloc) {
 }
 
 /**
- * Isoler les éléments d'un chambord dans le viewer
- */
-/**
  * Isoler les éléments d'une zone dans le viewer
  */
 function filterViewerByZone(zone) {
@@ -287,17 +284,10 @@ function showElementDetail(el) {
   const body  = document.getElementById('detailBody');
   if (!panel || !body) return;
 
-  const statusLabel = getStatusLabel(el.statut);
-  const statusClass = getStatusBadgeClass(el.statut);
-
   body.innerHTML = `
     <div class="detail-row">
       <span class="detail-label">ID</span>
       <span class="detail-value" style="font-family:monospace;font-size:10px">${el.expressId}</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-label">Nom</span>
-      <span class="detail-value">${el.nom || '—'}</span>
     </div>
     <div class="detail-row">
       <span class="detail-label">Bloc</span>
@@ -306,18 +296,6 @@ function showElementDetail(el) {
     <div class="detail-row">
       <span class="detail-label">Zone</span>
       <span class="detail-value">${el.zone || '—'}</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-label">Levée</span>
-      <span class="detail-value">${el.levee || '—'}</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-label">Phase</span>
-      <span class="detail-value">${el.phase || '—'}</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-label">Statut</span>
-      <span class="status-badge ${statusClass}">${statusLabel}</span>
     </div>
   `;
   panel.style.display = 'block';
@@ -334,10 +312,6 @@ function showRawProperties(dbId) {
     );
 
     body.innerHTML = `
-      <div class="detail-row">
-        <span class="detail-label">Nom</span>
-        <span class="detail-value">${props.name || '—'}</span>
-      </div>
       ${relevant.map(p => `
         <div class="detail-row">
           <span class="detail-label">${p.displayName}</span>
