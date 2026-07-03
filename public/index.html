@@ -61,11 +61,6 @@
       Tableau de bord
     </a>
   </nav>
-  <div class="sidebar-legend">
-    <div class="legend-title">LÉGENDE</div>
-    <div class="legend-item"><span class="legend-dot" style="background:#22b07d"></span><span>Réalisé</span></div>
-    <div class="legend-item"><span class="legend-dot" style="background:#D93025"></span><span>Non réalisé</span></div>
-  </div>
   <button class="btn-export" onclick="exportPDF()">
     <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 2h8l4 4v12H4V2zm5 9v4m0 0l-2-2m2 2l2-2"/></svg>
     Exporter PDF
@@ -146,6 +141,16 @@
       </div>
     </div>
     <div class="qf-group">
+      <label class="qf-item-label">Grue</label>
+      <div class="ms-wrapper" id="msGrue">
+        <button class="ms-btn" onclick="toggleDropdown('msGrue')">
+          Tout <span class="ms-badge" id="msGrueBadge" style="display:none"></span>
+          <svg viewBox="0 0 12 12" fill="currentColor" width="9"><path d="M2 4l4 4 4-4z"/></svg>
+        </button>
+        <div class="ms-dropdown" id="msGrueDrop"></div>
+      </div>
+    </div>
+    <div class="qf-group">
       <label class="qf-item-label">Statut</label>
       <select class="qf-select" id="filterStatut" onchange="onQuickFilter()">
         <option value="">Tout</option>
@@ -161,8 +166,6 @@
   </div>
 
   <!-- ROW 1: 4 grandes cartes -->
-  <!-- ROW 1: 4 grandes cartes -->
-<!-- ROW 1: 4 grandes cartes -->
 <section class="top-row">
 
   <!-- 1. Avancement Global -->
@@ -220,7 +223,7 @@
     </div>
   </div>
 
-  <!-- 3. Avancement par Bloc (anciennement en position 4, chart intégré) -->
+  <!-- 3. Avancement par Bloc (chart intégré) -->
   <div class="panel top-card top-card-wide">
     <div class="panel-header-row">
       <div class="panel-title-sm">AVANCEMENT PAR BLOC</div>
@@ -232,7 +235,7 @@
     <div class="bloc-chart-wrap"><canvas id="blocChart"></canvas></div>
   </div>
 
-  <!-- 4. Avancement Entreprise (anciennement en position 3) -->
+  <!-- 4. Avancement Entreprise -->
   <div class="panel top-card">
     <div class="panel-title-sm">AVANCEMENT ENTREPRISE</div>
     <div class="enterprise-body">

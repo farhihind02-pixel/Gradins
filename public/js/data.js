@@ -51,7 +51,7 @@ async function loadDataFromViewer(viewer) {
   return new Promise((resolve, reject) => {
     viewer.model.getBulkProperties(
       null,
-      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','ME_ELEMENT SUB ZONE','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume'] },
+      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','ME_ELEMENT SUB ZONE','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume','Commentaires'] },
       (results) => {
         AppState.allElements = [];
         AppState.dbIdMap.clear();
@@ -123,6 +123,7 @@ function normalizeElementFromViewer(raw) {
     zone:      get('YE_Zone', 'Zone', 'zone') ? String(get('YE_Zone', 'Zone','zone')).trim() : null,
     level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
     niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
+    grue:      String(get('Commentaires') || '').trim().toUpperCase() === 'NON' ? 'XMG' : 'GRUE_TOUR',
     ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
     coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
     pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
@@ -154,7 +155,7 @@ function buildLeveesFromElements(elements) {
   for (const el of elements) {
     const level = el.level || 'L?';
     const key   = `${el.bloc}|${el.zone}|${level}`;
-    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, niveau: el.niveau, level, statuts: [], nb_elements: 0 };
+    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, niveau: el.niveau, grue: el.grue, level, statuts: [], nb_elements: 0 };
     dict[key].statuts.push(el.statut);
     dict[key].nb_elements++;
   }
@@ -163,6 +164,7 @@ function buildLeveesFromElements(elements) {
     bloc:        d.bloc,
     zone:        d.zone,
     niveau:      d.niveau,
+    grue:        d.grue,
     level:       d.level,
     statut:      leveeStatus(d.statuts),
     nb_elements: d.nb_elements,
@@ -186,6 +188,7 @@ function computeStats(levees) {
   const byBloc   = {};
   const byZone   = {};
   const byNiveau = {};
+  const byGrue   = {};
 
   for (const l of levees) {
     byStatut[l.statut] = (byStatut[l.statut]||0) + 1;
@@ -205,6 +208,11 @@ function computeStats(levees) {
       byNiveau[l.niveau].total++;
       byNiveau[l.niveau][l.statut] = (byNiveau[l.niveau][l.statut]||0) + 1;
     }
+    if (l.grue) {
+      if (!byGrue[l.grue]) byGrue[l.grue] = { total:0, realise:0, en_cours:0, non_realise:0, non_concerne:0 };
+      byGrue[l.grue].total++;
+      byGrue[l.grue][l.statut] = (byGrue[l.grue][l.statut]||0) + 1;
+    }
   }
 
   return {
@@ -213,6 +221,7 @@ function computeStats(levees) {
     byBloc,
     byZone,
     byNiveau,
+    byGrue,
     pctGlobal: total > 0 ? Math.round((byStatut.realise / total) * 100) : 0,
   };
 }
@@ -224,6 +233,7 @@ function applyFilter(type, value) {
     if (type === 'bloc')     return l.bloc === value;
     if (type === 'zone')     return l.zone === value;
     if (type === 'niveau')   return l.niveau === value;
+    if (type === 'grue')     return l.grue === value;
     if (type === 'statut')   return l.statut === value;
     return true;
   });
@@ -252,6 +262,7 @@ function getDbIdsForFilter(type, value) {
       if (type === 'bloc')     return el.bloc === value;
       if (type === 'zone')     return el.zone === value;
       if (type === 'niveau')   return el.niveau === value;
+      if (type === 'grue')     return el.grue === value;
       if (type === 'statut')   return el.statut === value;
       return false;
     })

@@ -7,6 +7,7 @@ const MSState = {
   bloc:     new Set(),
   zone:     new Set(),
   niveau:   new Set(),
+  grue:     new Set(),
   statut:   '',
 };
 
@@ -53,11 +54,11 @@ window.onViewerReady = async function(viewerInst) {
   AppState.filteredElements = [...AppState.allElements];
   updateActivityBars(AppState.allElements);
   // Vider et reconstruire les dropdowns avec les vraies données du viewer
-  ['msBlocDrop','msZoneDrop','msNiveauDrop'].forEach(id => {
+  ['msBlocDrop','msZoneDrop','msNiveauDrop','msGrueDrop'].forEach(id => {
     const drop = document.getElementById(id);
     if (drop) drop.innerHTML = '';
   });
-  MSState.bloc.clear(); MSState.zone.clear(); MSState.niveau.clear();
+  MSState.bloc.clear(); MSState.zone.clear(); MSState.niveau.clear(); MSState.grue.clear();
   initMultiSelects(AppState.stats);
 };
 
@@ -138,6 +139,12 @@ function initMultiSelects(stats) {
   const niveaux = NIVEAU_ORDER.filter(n => stats.byNiveau[n]);
   buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n => NIVEAU_LABELS[n] || n, 'niveau');
 
+  // Grue (Commentaires) — XMG ou Grue à tour (clé interne GRUE_TOUR sans accent, libellé affiché avec accent)
+  const GRUE_ORDER  = ['XMG', 'GRUE_TOUR'];
+  const GRUE_LABELS = { XMG: 'XMG', GRUE_TOUR: 'Grue à tour' };
+  const grues = GRUE_ORDER.filter(g => stats.byGrue[g]);
+  buildMultiSelect('msGrue','msGrueDrop','msGrueBadge', grues, g => GRUE_LABELS[g] || g, 'grue');
+
   updateQfCount(AppState.allLevees.length, AppState.allLevees.length);
 }
 
@@ -150,6 +157,7 @@ window.onQuickFilter = function() {
     if (MSState.bloc.size>0     && !MSState.bloc.has(l.bloc))                return false;
     if (MSState.zone.size>0     && !MSState.zone.has(l.zone))                return false;
     if (MSState.niveau.size>0   && !MSState.niveau.has(l.niveau))            return false;
+    if (MSState.grue.size>0     && !MSState.grue.has(l.grue))                return false;
     if (statut && l.statut !== statut)                                        return false;
     return true;
   });
@@ -166,6 +174,7 @@ window.onQuickFilter = function() {
     if (MSState.bloc.size>0     && !MSState.bloc.has(el.bloc))               return false;
     if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
     if (MSState.niveau.size>0   && !MSState.niveau.has(el.niveau))           return false;
+    if (MSState.grue.size>0     && !MSState.grue.has(el.grue))               return false;
     if (statut && el.statut !== statut)                                        return false;
     return true;
   });
@@ -173,7 +182,7 @@ window.onQuickFilter = function() {
   AppState.filteredElements = filteredElements;
   updateActivityBars(filteredElements);
 
-  const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||MSState.niveau.size>0||!!statut;
+  const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||MSState.niveau.size>0||MSState.grue.size>0||!!statut;
   applyViewerFilter(filteredElements, hasFilter);
 };
 
@@ -210,6 +219,7 @@ function applyViewerFilter(filteredElements, hasFilter) {
   if (filteredArr.length > 0) {
     setTimeout(() => viewer.fitToView(filteredArr), 200);
   }
+  viewer.impl.invalidate(true, true, true);   // ← forcer le rafraîchissement du rendu
 }
 
 function updateQfCount(filtered, total) {
@@ -223,7 +233,7 @@ function updateQfCount(filtered, total) {
 }
 
 window.resetQuickFilters = function() {
-  ['bloc','zone','niveau'].forEach(key => {
+  ['bloc','zone','niveau','grue'].forEach(key => {
     MSState[key].clear();
     const dropId = `ms${key.charAt(0).toUpperCase()+key.slice(1)}Drop`;
     const drop = document.getElementById(dropId);
