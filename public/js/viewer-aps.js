@@ -112,9 +112,16 @@ async function initAPSViewer() {
     // 7. Toujours reconstruire allElements + dbIdMap depuis le viewer
     // (les dbIds changent à chaque nouvelle maquette)
     setLoaderText('Lecture des éléments depuis la maquette…');
-    await loadDataFromViewer(viewer);
+    console.log('[APS] Début loadDataFromViewer…');
 
-    setLoaderProgress(100);
+    await Promise.race([
+      loadDataFromViewer(viewer),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout : la lecture des propriétés BIM a pris plus de 60 secondes. Réessayez, ou vérifiez la connexion réseau de ce serveur.')), 60000)
+      ),
+    ]);
+
+    console.log('[APS] loadDataFromViewer terminé ✓');
 
     // 8. Écouter les événements du viewer
     setupViewerEvents();
