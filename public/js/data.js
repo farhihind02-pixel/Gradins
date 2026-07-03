@@ -123,7 +123,7 @@ function normalizeElementFromViewer(raw) {
     zone:      get('YE_Zone', 'Zone', 'zone') ? String(get('YE_Zone', 'Zone','zone')).trim() : null,
     level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
     niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
-    grue:      String(get('Commentaires') || '').trim().toUpperCase() === 'NON' ? 'XMG' : 'GRUE_TOUR',
+    grue:      String(get('Commentaires') || '').trim().toUpperCase() === 'NON' ? 'XCMG' : 'GRUE_TOUR',
     ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
     coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
     pose:      toBBFlag(get('BB POSE', 'BB_POSE')),

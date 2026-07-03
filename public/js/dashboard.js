@@ -139,9 +139,9 @@ function initMultiSelects(stats) {
   const niveaux = NIVEAU_ORDER.filter(n => stats.byNiveau[n]);
   buildMultiSelect('msNiveau','msNiveauDrop','msNiveauBadge', niveaux, n => NIVEAU_LABELS[n] || n, 'niveau');
 
-  // Grue (Commentaires) — XMG ou Grue à tour (clé interne GRUE_TOUR sans accent, libellé affiché avec accent)
-  const GRUE_ORDER  = ['XMG', 'GRUE_TOUR'];
-  const GRUE_LABELS = { XMG: 'XMG', GRUE_TOUR: 'Grue à tour' };
+  // Grue (Commentaires) — XCMG ou Grue à tour (clé interne GRUE_TOUR sans accent, libellé affiché avec accent)
+  const GRUE_ORDER  = ['XCMG', 'GRUE_TOUR'];
+  const GRUE_LABELS = { XCMG: 'XCMG', GRUE_TOUR: 'Grue à tour' };
   const grues = GRUE_ORDER.filter(g => stats.byGrue[g]);
   buildMultiSelect('msGrue','msGrueDrop','msGrueBadge', grues, g => GRUE_LABELS[g] || g, 'grue');
 
