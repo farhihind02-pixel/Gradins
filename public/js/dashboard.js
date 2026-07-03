@@ -198,10 +198,21 @@ function applyViewerFilter(filteredElements, hasFilter) {
   }
 
   const filteredSet = new Set(filteredElements.map(el => parseInt(el.id)).filter(n => !isNaN(n)));
+  const allIds     = AppState.allElements.map(el => parseInt(el.id)).filter(n => !isNaN(n));
+  const hiddenIds  = allIds.filter(id => !filteredSet.has(id));
   const filteredArr = [...filteredSet];
 
-  // Isoler (au lieu de showAll+hide) : plus fiable sur les gros modèles HLOD
-  viewer.isolate(filteredArr);
+  // Le rendu de ce modèle plante/désynchronise quand on manipule une TRÈS grande liste
+  // d'un coup (hide() ou isolate()). Solution : toujours opérer sur la plus petite des
+  // deux listes (celle à cacher ou celle à montrer), jamais sur la grande.
+  viewer.showAll();
+  if (filteredArr.length <= hiddenIds.length) {
+    // Le sous-ensemble filtré est le plus petit → l'isoler directement
+    viewer.isolate(filteredArr);
+  } else {
+    // Le complément (à cacher) est le plus petit → cacher seulement celui-là
+    if (hiddenIds.length > 0) viewer.hide(hiddenIds);
+  }
 
   // Colorier par statut les éléments filtrés
   viewer.clearThemingColors(viewer.model);
@@ -219,7 +230,6 @@ function applyViewerFilter(filteredElements, hasFilter) {
   if (filteredArr.length > 0) {
     setTimeout(() => viewer.fitToView(filteredArr), 200);
   }
-  viewer.impl.invalidate(true, true, true);   // ← forcer le rafraîchissement du rendu
 }
 
 function updateQfCount(filtered, total) {
