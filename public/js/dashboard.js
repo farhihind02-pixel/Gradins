@@ -179,8 +179,18 @@ window.onQuickFilter = function() {
     return true;
   });
 
+  // Même filtrage MAIS sans le critère Grue, pour que le % Avancement Global
+  // ne soit jamais affecté par ce filtre spécifique
+  const filteredElementsNoGrue = AppState.allElements.filter(el => {
+    if (MSState.bloc.size>0     && !MSState.bloc.has(el.bloc))               return false;
+    if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
+    if (MSState.niveau.size>0   && !MSState.niveau.has(el.niveau))           return false;
+    if (statut && el.statut !== statut)                                        return false;
+    return true;
+  });
+
   AppState.filteredElements = filteredElements;
-  updateActivityBars(filteredElements);
+  updateActivityBars(filteredElements, filteredElementsNoGrue);
 
   const hasFilter = MSState.bloc.size>0||MSState.zone.size>0||MSState.niveau.size>0||MSState.grue.size>0||!!statut;
   applyViewerFilter(filteredElements, hasFilter);

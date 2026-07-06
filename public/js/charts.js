@@ -44,7 +44,10 @@ function updateKPIs(stats) {
 }
 
 // ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
-function updateActivityBars(elements) {
+// elementsForGlobal : sous-ensemble utilisé UNIQUEMENT pour le % de la roue
+// (n'est pas affecté par le filtre Grue). Unités Réalisé/Totale restent affectées
+// par TOUS les filtres, y compris Grue. Si omis, se comporte comme avant (identique).
+function updateActivityBars(elements, elementsForGlobal) {
   const stats = computeActivityStats(elements || []);
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   const setW=(id,v)=>{ const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
@@ -52,16 +55,20 @@ function updateActivityBars(elements) {
   set('coulPct', `${stats.coul.pct}%`); setW('coulBar', stats.coul.pct);
   set('posePct', `${stats.pose.pct}%`); setW('poseBar', stats.pose.pct);
 
-  // Unités Réalisé / Unité Totale (basé sur BB POSE) + % global = Réalisé / Totale
+  // Unités Réalisé / Unité Totale : affectées par TOUS les filtres actifs (dont Grue)
   const els = elements || [];
   const unitesRealisees = els.filter(el => el.pose === 1).length;
   const uniteTotale     = els.filter(el => el.pose === 0 || el.pose === 1).length;
-  const pctUnites       = uniteTotale > 0 ? Math.round((unitesRealisees / uniteTotale) * 100) : 0;
-
   set('kpiUnitesRealisees', unitesRealisees.toLocaleString('fr-FR'));
   set('kpiUniteTotale', uniteTotale.toLocaleString('fr-FR'));
-  set('kpiPct', `${pctUnites}%`);
-  updateKpiDonutValue(pctUnites);
+
+  // % de la roue (Avancement Global) : IGNORE uniquement le filtre Grue
+  const elsGlobal = elementsForGlobal || elements || [];
+  const realiseGlobal = elsGlobal.filter(el => el.pose === 1).length;
+  const totalGlobal    = elsGlobal.filter(el => el.pose === 0 || el.pose === 1).length;
+  const pctGlobal       = totalGlobal > 0 ? Math.round((realiseGlobal / totalGlobal) * 100) : 0;
+  set('kpiPct', `${pctGlobal}%`);
+  updateKpiDonutValue(pctGlobal);
 
   updateEnterprise(elements);
   updateBlocChartData(elements);
