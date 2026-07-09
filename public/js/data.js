@@ -25,7 +25,6 @@ async function loadDataFromJSON() {
     ]);
     AppState.allElements = await elemResp.json();
     AppState.allLevees   = await levResp.json();
-    // Peupler la dbIdMap depuis les éléments JSON
     AppState.dbIdMap.clear();
     AppState.allElements.forEach(el => {
       const id = parseInt(el.id);
@@ -51,7 +50,15 @@ async function loadDataFromViewer(viewer) {
   return new Promise((resolve, reject) => {
     viewer.model.getBulkProperties(
       null,
-      { propFilter: ['BB_Bloc','Bloc','YE_Zone','ME_ELEMENT LEVEL','ME_ELEMENT SUB ZONE','Phase 1','RESTE','Coulé 1','Coulé 2','BB FERR','BB COULAGE','BB POSE','Volume','Commentaires'] },
+      {
+        propFilter: [
+          'BB_Bloc', 'Bloc', 'ZONE', 'YE_Zone',              // <-- 'ZONE' ajouté (paramètre texte gradins)
+          'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
+          'Phase 1', 'RESTE', 'Coulé 1', 'Coulé 2',
+          'BB FERR', 'BB COULAGE', 'BB POSE',
+          'Volume', 'Commentaires',
+        ],
+      },
       (results) => {
         AppState.allElements = [];
         AppState.dbIdMap.clear();
@@ -62,7 +69,7 @@ async function loadDataFromViewer(viewer) {
           AppState.dbIdMap.set(r.dbId, el);
         }
 
-        // Debug : afficher les premiers éléments avec BB_Bloc
+        // Debug : afficher les premiers éléments avec Bloc
         const avecBloc = AppState.allElements.filter(e => e.bloc);
         console.log('[Data] Éléments avec bloc:', avecBloc.length, avecBloc.slice(0,3).map(e=>({bloc:e.bloc,zone:e.zone})));
 
@@ -74,6 +81,15 @@ async function loadDataFromViewer(viewer) {
           else sansZone++;
         }
         console.log('[Data] Distribution zones:', zoneCounts, '| Sans zone:', sansZone, '/', AppState.allElements.length);
+
+        // Debug : histogramme des valeurs de bloc (pour diagnostiquer les blocs manquants)
+        const blocCounts = {};
+        let sansBloc = 0;
+        for (const e of AppState.allElements) {
+          if (e.bloc) blocCounts[e.bloc] = (blocCounts[e.bloc]||0) + 1;
+          else sansBloc++;
+        }
+        console.log('[Data] Distribution blocs:', blocCounts, '| Sans bloc:', sansBloc, '/', AppState.allElements.length);
 
         // Construire les levées depuis les éléments du viewer
         AppState.allLevees   = buildLeveesFromElements(AppState.allElements);
@@ -93,7 +109,6 @@ function normalizeElementFromViewer(raw) {
   const props = {};
   for (const p of (raw.properties || [])) {
     props[p.displayName?.toLowerCase()] = p.displayValue;
-    // Aussi indexer par attributeName pour les paramètres partagés
     if (p.attributeName) props[p.attributeName.toLowerCase()] = p.displayValue;
   }
   const get = (...keys) => {
@@ -119,8 +134,10 @@ function normalizeElementFromViewer(raw) {
   return {
     id:        String(raw.dbId),
     expressId: raw.dbId,
-    bloc:      get('BB_Bloc', 'Bloc', 'bloc') ? String(get('BB_Bloc', 'Bloc','bloc')).trim() : null,
-    zone:      get('YE_Zone', 'Zone', 'zone') ? String(get('YE_Zone', 'Zone','zone')).trim() : null,
+    // Paramètre texte "Bloc" en priorité, avec BB_Bloc en repli pour compatibilité autres modèles
+    bloc:      get('Bloc', 'BB_Bloc', 'bloc') ? String(get('Bloc', 'BB_Bloc', 'bloc')).trim() : null,
+    // Paramètre texte "ZONE" en priorité, avec YE_Zone en repli pour compatibilité autres modèles
+    zone:      get('ZONE', 'YE_Zone', 'Zone', 'zone') ? String(get('ZONE', 'YE_Zone', 'Zone', 'zone')).trim() : null,
     level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
     niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
     grue:      String(get('Commentaires') || '').trim().toUpperCase() === 'NON' ? 'XCMG' : 'GRUE_TOUR',
@@ -132,7 +149,6 @@ function normalizeElementFromViewer(raw) {
   };
 }
 
-// Extrait la valeur numérique d'un paramètre Volume Revit (souvent formaté "12.34 m³")
 function parseVolumeValue(v) {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -140,8 +156,6 @@ function parseVolumeValue(v) {
   return match ? parseFloat(match[0]) : 0;
 }
 
-// Normalise une valeur de paramètre BB_* (case à cocher Revit) en 1 / 0 / null
-// null = paramètre non renseigné sur cet élément (exclu du calcul d'avancement)
 function toBBFlag(v) {
   if (v === null || v === undefined || v === '') return null;
   if (v === true || v === 1 || v === '1' || v === '.T.' || v === 'true')  return 1;
@@ -271,11 +285,6 @@ function getDbIdsForFilter(type, value) {
 }
 
 // ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
-// Les 3 activités sont calculées en VOLUME (pas en nombre d'éléments) :
-// % = somme(Volume des éléments où l'étape est effectuée) / somme(Volume de TOUS les éléments)
-// Cascade : Pose implique Coulage, Coulage implique Ferraillage
-// (BB FERR / BB COULAGE reflètent l'étape EN COURS et sont remis à 0 aux étapes suivantes,
-// donc on considère l'étape acquise dès qu'une étape ultérieure est faite)
 function computeActivityStats(elements) {
   let ferrVolume = 0, coulVolume = 0, poseVolume = 0, totalVolume = 0;
 
@@ -326,7 +335,7 @@ function computeBlocActivityStats(elements) {
     result[bloc] = {
       ferrPct: pct(d.ferrVolume),
       coulPct: pct(d.coulVolume),
-      posePct: pct(d.poseVolume), // = avancement global du bloc (même métrique que Pose)
+      posePct: pct(d.poseVolume),
       totalVolume: d.totalVolume,
     };
   }
