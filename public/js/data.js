@@ -52,14 +52,16 @@ async function loadDataFromViewer(viewer) {
       null,
       {
         propFilter: [
-          'BB_Bloc', 'Bloc', 'ZONE', 'YE_Zone',              // <-- 'ZONE' ajouté (paramètre texte gradins)
-          'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
-          'Phase 1', 'RESTE', 'Coulé 1', 'Coulé 2',
-          'BB FERR', 'BB COULAGE', 'BB POSE',
-          'Volume', 'Commentaires',
-        ],
+  'BLOC',
+  'ZONE',
+  'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
+  'Phase 1', 'RESTE', 'Coulé 1', 'Coulé 2',
+  'BB FERR', 'BB COULAGE', 'BB POSE',
+  'Volume', 'Inaccessible',
+],
       },
       (results) => {
+        // ... reste inchangé
         AppState.allElements = [];
         AppState.dbIdMap.clear();
 
@@ -131,22 +133,20 @@ function normalizeElementFromViewer(raw) {
   else if (isTrue(reste))          statut = 'non_realise';
   else                             statut = 'non_concerne';
 
-  return {
-    id:        String(raw.dbId),
-    expressId: raw.dbId,
-    // Paramètre texte "Bloc" en priorité, avec BB_Bloc en repli pour compatibilité autres modèles
-    bloc:      get('Bloc', 'BB_Bloc', 'bloc') ? String(get('Bloc', 'BB_Bloc', 'bloc')).trim() : null,
-    // Paramètre texte "ZONE" en priorité, avec YE_Zone en repli pour compatibilité autres modèles
-    zone:      get('ZONE', 'YE_Zone', 'Zone', 'zone') ? String(get('ZONE', 'YE_Zone', 'Zone', 'zone')).trim() : null,
-    level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
-    niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
-    grue:      String(get('Commentaires') || '').trim().toUpperCase() === 'NON' ? 'XCMG' : 'GRUE_TOUR',
-    ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
-    coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
-    pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
-    volume:    parseVolumeValue(get('Volume')),
-    statut,
-  };
+ return {
+  id:        String(raw.dbId),
+  expressId: raw.dbId,
+  bloc:      get('BLOC') ? String(get('BLOC')).trim() : null,
+  zone:      get('ZONE') ? String(get('ZONE')).trim() : null,
+  level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
+  niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
+  grue: toBBFlag(get('Inaccessible')) === 1 ? 'XCMG' : 'GRUE_TOUR',
+  ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
+  coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
+  pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
+  volume:    parseVolumeValue(get('Volume')),
+  statut,
+};
 }
 
 function parseVolumeValue(v) {

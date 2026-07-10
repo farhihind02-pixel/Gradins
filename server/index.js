@@ -16,8 +16,8 @@ const {
   APS_CALLBACK_URL = 'http://localhost:8080/api/auth/callback',
   ACC_PROJECT_ID, ACC_MODEL_URN, PORT = 8080,
 } = process.env;
-const VERSION_URN    = 'urn:adsk.wipprod:fs.file:vf.l7oroD01QWiEtMG4bPfpPg?version=4';
-const VIEWABLE_GUID  = '1024455e-5ea6-a67d-eac9-1257d723d617';
+const VERSION_URN    = 'urn:adsk.wipprod:fs.file:vf.RjJTUvEFR6-zNyscGhiweQ?version=4';
+const VIEWABLE_GUID  = 'ba038fb3-2c4f-96a0-a968-839f13e4c888';
 const ACC_FOLDER_URN = 'urn:adsk.wipprod:fs.folder:co.wCGS1GRTQ9Osfrb_hKFevg';
 
 const DERIVATIVE_URN = Buffer.from(VERSION_URN).toString('base64')

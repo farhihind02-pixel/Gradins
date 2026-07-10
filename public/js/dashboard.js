@@ -130,7 +130,11 @@ function initMultiSelects(stats) {
   buildMultiSelect('msBloc','msBlocDrop','msBlocBadge', blocs, b=>`Bloc ${b}`, 'bloc');
 
   // Zones
-  const zones = Object.keys(stats.byZone).sort();
+  const zones = Object.keys(stats.byZone).sort((a, b) => {
+  const na = parseInt(a.replace(/\D/g, ''), 10) || 0;
+  const nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
+  return na - nb;
+});
   buildMultiSelect('msZone','msZoneDrop','msZoneBadge', zones, z=>z, 'zone');
 
   // Niveaux (ME_ELEMENT SUB ZONE) — uniquement LT, MT, UT, dans cet ordre, avec libellés en français
