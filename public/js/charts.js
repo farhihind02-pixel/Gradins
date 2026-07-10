@@ -3,7 +3,6 @@
  */
 let kpiDonutChart=null, blocChart=null;
 
-// Blocs SGTM vs TGCC
 const SGTM_BLOCS = new Set(['1','2','3']);
 const TGCC_BLOCS = new Set(['TGCC']);
 
@@ -18,7 +17,6 @@ function updateCharts(stats) {
   updateKpiDonut(stats);
 }
 
-// ── KPI Donut ──────────────────────────────────────────────────────────────
 function initKpiDonut(stats) {
   const ctx = document.getElementById('kpiDonut');
   if (!ctx) return;
@@ -30,6 +28,7 @@ function initKpiDonut(stats) {
     options:{ responsive:true, cutout:'80%', animation:{duration:700}, plugins:{legend:{display:false},tooltip:{enabled:false}} },
   });
 }
+
 function updateKpiDonut(stats) {
   if (!kpiDonutChart) return;
   const pct=stats.pctGlobal||0;
@@ -37,36 +36,37 @@ function updateKpiDonut(stats) {
   kpiDonutChart.update();
 }
 
-// ── KPI Values ──────────────────────────────────────────────────────────────
 function updateKPIs(stats) {
-  // Le % global et les unités sont désormais calculés dans updateActivityBars
-  // à partir de BB POSE, pas des levées — voir plus bas.
+  // calculé dans updateActivityBars
 }
 
-// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
-// elementsForGlobal : sous-ensemble utilisé UNIQUEMENT pour le % de la roue
-// (n'est pas affecté par le filtre Grue). Unités Réalisé/Totale restent affectées
-// par TOUS les filtres, y compris Grue. Si omis, se comporte comme avant (identique).
+// ── Avancement par activité ───────────────────────────────────────────────────
+// Unités Réalisées / Unité Totale = uniquement les éléments ME_ELEMENT TYPE = GD
 function updateActivityBars(elements, elementsForGlobal) {
   const stats = computeActivityStats(elements || []);
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  const setW=(id,v)=>{ const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
+  const set  = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  const setW = (id,v) => { const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
+
   set('ferrPct', `${stats.ferr.pct}%`); setW('ferrBar', stats.ferr.pct);
   set('coulPct', `${stats.coul.pct}%`); setW('coulBar', stats.coul.pct);
   set('posePct', `${stats.pose.pct}%`); setW('poseBar', stats.pose.pct);
 
-  // Unités Réalisé / Unité Totale : affectées par TOUS les filtres actifs (dont Grue)
-  const els = elements || [];
-  const unitesRealisees = els.filter(el => el.pose === 1).length;
-  const uniteTotale     = els.filter(el => el.pose === 0 || el.pose === 1).length;
-  set('kpiUnitesRealisees', unitesRealisees.toLocaleString('fr-FR'));
-  set('kpiUniteTotale', uniteTotale.toLocaleString('fr-FR'));
+  // ── Unités Réalisées / Unité Totale ──────────────────────────────────────
+  // Filtrés sur ME_ELEMENT TYPE = 'GD' uniquement
+  const els   = elements || [];
+  const elsGD = els.filter(el => el.elementType === 'GD');
 
-  // % de la roue (Avancement Global) : IGNORE uniquement le filtre Grue
-  const elsGlobal = elementsForGlobal || elements || [];
+  const unitesRealisees = elsGD.filter(el => el.pose === 1).length;
+  const uniteTotale     = elsGD.filter(el => el.pose === 0 || el.pose === 1).length;
+  set('kpiUnitesRealisees', unitesRealisees.toLocaleString('fr-FR'));
+  set('kpiUniteTotale',     uniteTotale.toLocaleString('fr-FR'));
+
+  // ── % Avancement Global (roue) ────────────────────────────────────────────
+  // Ignore le filtre Grue — filtre GD aussi
+  const elsGlobal   = (elementsForGlobal || elements || []).filter(el => el.elementType === 'GD');
   const realiseGlobal = elsGlobal.filter(el => el.pose === 1).length;
-  const totalGlobal    = elsGlobal.filter(el => el.pose === 0 || el.pose === 1).length;
-  const pctGlobal       = totalGlobal > 0 ? Math.round((realiseGlobal / totalGlobal) * 100) : 0;
+  const totalGlobal   = elsGlobal.filter(el => el.pose === 0 || el.pose === 1).length;
+  const pctGlobal     = totalGlobal > 0 ? Math.round((realiseGlobal / totalGlobal) * 100) : 0;
   set('kpiPct', `${pctGlobal}%`);
   updateKpiDonutValue(pctGlobal);
 
@@ -81,28 +81,25 @@ function updateKpiDonutValue(pct) {
   kpiDonutChart.update();
 }
 
-// ── Enterprise ──────────────────────────────────────────────────────────────
-// SGTM = Blocs 1+2+3, TGCC = Bloc "TGCC" — même métrique que AVANCEMENT GLOBAL (BB POSE)
 function updateEnterprise(elements) {
   let sgtmReal=0, sgtmTot=0, tgccReal=0, tgccTot=0;
   for (const el of (elements || [])) {
-    if (el.pose !== 0 && el.pose !== 1) continue; // exclut les éléments où BB POSE n'est pas renseigné
+    if (el.pose !== 0 && el.pose !== 1) continue;
     if (SGTM_BLOCS.has(el.bloc)) { sgtmTot++; if (el.pose === 1) sgtmReal++; }
     if (TGCC_BLOCS.has(el.bloc)) { tgccTot++; if (el.pose === 1) tgccReal++; }
   }
   const sgtmPct = sgtmTot>0 ? Math.round(sgtmReal/sgtmTot*100) : 0;
   const tgccPct = tgccTot>0 ? Math.round(tgccReal/tgccTot*100) : 0;
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  const setW=(id,v)=>{ const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
+  const set  = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  const setW = (id,v) => { const el=document.getElementById(id); if(el) el.style.width=v+'%'; };
   set('sgtmPct',`${sgtmPct}%`); setW('sgtmBar',sgtmPct);
   set('tgccPct',`${tgccPct}%`); setW('tgccBar',tgccPct);
 }
 
-// ── Bloc Chart (Unités Totale / Unités Réalisé, basé sur BB POSE) ────────────
 function computeBlocUnitStats(elements) {
   const byBloc = {};
   for (const el of (elements || [])) {
-    if (el.pose !== 0 && el.pose !== 1) continue; // exclut BB POSE non renseigné
+    if (el.pose !== 0 && el.pose !== 1) continue;
     if (!el.bloc) continue;
     if (!byBloc[el.bloc]) byBloc[el.bloc] = { total: 0, realise: 0 };
     byBloc[el.bloc].total++;
@@ -165,14 +162,13 @@ function updateBlocChartData(elements) {
   blocChart.update();
 }
 
-// ── Table Bloc et Activité ─────────────────────────────────────────────────────
 function renderBlocActivityTable(elements) {
-  const tbody = document.getElementById('blocActivityBody');
+  const tbody  = document.getElementById('blocActivityBody');
   const footer = document.getElementById('tableFooter');
   if (!tbody) return;
 
   const byBloc = computeBlocActivityStats(elements || []);
-  const blocs = Object.keys(byBloc).sort((a, b) => {
+  const blocs  = Object.keys(byBloc).sort((a, b) => {
     if (a === 'TGCC') return 1;
     if (b === 'TGCC') return -1;
     return a.localeCompare(b, undefined, { numeric: true });
@@ -190,7 +186,6 @@ function renderBlocActivityTable(elements) {
     </tr>`;
   }).join('');
 
-  // Ligne TOTAL = calcul global (tous blocs confondus)
   const g = computeActivityStats(elements || []);
   tbody.innerHTML += `<tr style="background:#eef7f1;font-weight:700;cursor:default" onclick="event.stopPropagation()">
     <td>TOTAL</td>

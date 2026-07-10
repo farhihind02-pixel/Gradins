@@ -6,16 +6,14 @@
  */
 
 const AppState = {
-  allElements:   [],   // Éléments individuels (pour le viewer)
-  allLevees:     [],   // Levées (pour les KPI et graphes)
+  allElements:   [],
+  allLevees:     [],
   filteredLevees:[],
   activeFilter:  null,
   stats:         null,
   filteredStats: null,
-  dbIdMap:       new Map(),  // dbId → element
+  dbIdMap:       new Map(),
 };
-
-// ── Chargement depuis JSON pré-calculé ────────────────────────────────────────
 
 async function loadDataFromJSON() {
   try {
@@ -44,24 +42,22 @@ async function loadDataFromJSON() {
   }
 }
 
-// ── Chargement depuis le Viewer APS (fallback si JSON absent) ─────────────────
-
 async function loadDataFromViewer(viewer) {
   return new Promise((resolve, reject) => {
     viewer.model.getBulkProperties(
       null,
       {
         propFilter: [
-  'BLOC',
-  'ZONE',
-  'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
-  'Phase 1', 'RESTE', 'Coulé 1', 'Coulé 2',
-  'BB FERR', 'BB COULAGE', 'BB POSE',
-  'Volume', 'Inaccessible',
-],
+          'BLOC',
+          'ZONE',
+          'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
+          'ME_ELEMENT TYPE',
+          'Phase 1', 'RESTE', 'Coulé 1', 'Coulé 2',
+          'BB FERR', 'BB COULAGE', 'BB POSE',
+          'Volume', 'Inaccessible',
+        ],
       },
       (results) => {
-        // ... reste inchangé
         AppState.allElements = [];
         AppState.dbIdMap.clear();
 
@@ -71,11 +67,9 @@ async function loadDataFromViewer(viewer) {
           AppState.dbIdMap.set(r.dbId, el);
         }
 
-        // Debug : afficher les premiers éléments avec Bloc
         const avecBloc = AppState.allElements.filter(e => e.bloc);
         console.log('[Data] Éléments avec bloc:', avecBloc.length, avecBloc.slice(0,3).map(e=>({bloc:e.bloc,zone:e.zone})));
 
-        // Debug : histogramme des valeurs de zone (pour diagnostiquer les zones manquantes)
         const zoneCounts = {};
         let sansZone = 0;
         for (const e of AppState.allElements) {
@@ -84,7 +78,6 @@ async function loadDataFromViewer(viewer) {
         }
         console.log('[Data] Distribution zones:', zoneCounts, '| Sans zone:', sansZone, '/', AppState.allElements.length);
 
-        // Debug : histogramme des valeurs de bloc (pour diagnostiquer les blocs manquants)
         const blocCounts = {};
         let sansBloc = 0;
         for (const e of AppState.allElements) {
@@ -93,8 +86,15 @@ async function loadDataFromViewer(viewer) {
         }
         console.log('[Data] Distribution blocs:', blocCounts, '| Sans bloc:', sansBloc, '/', AppState.allElements.length);
 
-        // Construire les levées depuis les éléments du viewer
-        AppState.allLevees   = buildLeveesFromElements(AppState.allElements);
+        // Debug : distribution ME_ELEMENT TYPE
+        const typeCounts = {};
+        for (const e of AppState.allElements) {
+          const t = e.elementType || '(vide)';
+          typeCounts[t] = (typeCounts[t]||0) + 1;
+        }
+        console.log('[Data] Distribution elementType:', typeCounts);
+
+        AppState.allLevees      = buildLeveesFromElements(AppState.allElements);
         AppState.filteredLevees = [...AppState.allLevees];
         AppState.stats          = computeStats(AppState.allLevees);
         AppState.filteredStats  = AppState.stats;
@@ -128,25 +128,30 @@ function normalizeElementFromViewer(raw) {
   const isTrue = v => v === true || v === 'true' || v === 1 || v === '.T.';
 
   let statut;
-  if (isTrue(phase1))              statut = 'realise';
+  if (isTrue(phase1))                        statut = 'realise';
   else if (isTrue(coule1) || isTrue(coule2)) statut = 'en_cours';
-  else if (isTrue(reste))          statut = 'non_realise';
-  else                             statut = 'non_concerne';
+  else if (isTrue(reste))                    statut = 'non_realise';
+  else                                       statut = 'non_concerne';
 
- return {
-  id:        String(raw.dbId),
-  expressId: raw.dbId,
-  bloc:      get('BLOC') ? String(get('BLOC')).trim() : null,
-  zone:      get('ZONE') ? String(get('ZONE')).trim() : null,
-  level:     get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
-  niveau:    get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
-  grue: toBBFlag(get('Inaccessible')) === 1 ? 'XCMG' : 'GRUE_TOUR',
-  ferr:      toBBFlag(get('BB FERR', 'BB_FERR')),
-  coul:      toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
-  pose:      toBBFlag(get('BB POSE', 'BB_POSE')),
-  volume:    parseVolumeValue(get('Volume')),
-  statut,
-};
+  // ME_ELEMENT TYPE — ex: 'GD', 'MS', 'VO', etc.
+  const elementTypeRaw = get('ME_ELEMENT TYPE', 'me_element type');
+  const elementType    = elementTypeRaw ? String(elementTypeRaw).trim().toUpperCase() : null;
+
+  return {
+    id:          String(raw.dbId),
+    expressId:   raw.dbId,
+    elementType,                              // ← ME_ELEMENT TYPE (ex: 'GD')
+    bloc:        get('BLOC') ? String(get('BLOC')).trim() : null,
+    zone:        get('ZONE') ? String(get('ZONE')).trim() : null,
+    level:       get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
+    niveau:      get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
+    grue:        toBBFlag(get('Inaccessible')) === 1 ? 'XCMG' : 'GRUE_TOUR',
+    ferr:        toBBFlag(get('BB FERR', 'BB_FERR')),
+    coul:        toBBFlag(get('BB COULAGE', 'BB_COULAGE')),
+    pose:        toBBFlag(get('BB POSE', 'BB_POSE')),
+    volume:      parseVolumeValue(get('Volume')),
+    statut,
+  };
 }
 
 function parseVolumeValue(v) {
@@ -163,7 +168,6 @@ function toBBFlag(v) {
   return null;
 }
 
-// ── Construire les levées depuis les éléments ─────────────────────────────────
 function buildLeveesFromElements(elements) {
   const dict = {};
   for (const el of elements) {
@@ -189,13 +193,12 @@ function leveeStatus(statuts) {
   const n = statuts.length;
   const c = { realise:0, en_cours:0, non_realise:0, non_concerne:0 };
   statuts.forEach(s => c[s] = (c[s]||0)+1);
-  if (c.realise === n)  return 'realise';
-  if (c.en_cours > 0)   return 'en_cours';
+  if (c.realise === n)   return 'realise';
+  if (c.en_cours > 0)    return 'en_cours';
   if (c.non_realise > 0) return 'non_realise';
   return 'non_concerne';
 }
 
-// ── Calcul des stats sur les LEVÉES ──────────────────────────────────────────
 function computeStats(levees) {
   const total    = levees.length;
   const byStatut = { realise:0, en_cours:0, non_realise:0, non_concerne:0 };
@@ -206,7 +209,6 @@ function computeStats(levees) {
 
   for (const l of levees) {
     byStatut[l.statut] = (byStatut[l.statut]||0) + 1;
-
     if (l.bloc) {
       if (!byBloc[l.bloc]) byBloc[l.bloc] = { total:0, realise:0, en_cours:0, non_realise:0, non_concerne:0 };
       byBloc[l.bloc].total++;
@@ -230,35 +232,27 @@ function computeStats(levees) {
   }
 
   return {
-    total,
-    byStatut,
-    byBloc,
-    byZone,
-    byNiveau,
-    byGrue,
+    total, byStatut, byBloc, byZone, byNiveau, byGrue,
     pctGlobal: total > 0 ? Math.round((byStatut.realise / total) * 100) : 0,
   };
 }
 
-// ── Filtres ───────────────────────────────────────────────────────────────────
 function applyFilter(type, value) {
   AppState.activeFilter = { type, value };
   const filtered = AppState.allLevees.filter(l => {
-    if (type === 'bloc')     return l.bloc === value;
-    if (type === 'zone')     return l.zone === value;
-    if (type === 'niveau')   return l.niveau === value;
-    if (type === 'grue')     return l.grue === value;
-    if (type === 'statut')   return l.statut === value;
+    if (type === 'bloc')   return l.bloc === value;
+    if (type === 'zone')   return l.zone === value;
+    if (type === 'niveau') return l.niveau === value;
+    if (type === 'grue')   return l.grue === value;
+    if (type === 'statut') return l.statut === value;
     return true;
   });
   AppState.filteredLevees = filtered;
   AppState.filteredStats  = computeStats(filtered);
-
   const bar = document.getElementById('filterBar');
   const lbl = document.getElementById('filterLabel');
   if (bar) bar.style.display = 'flex';
   if (lbl) lbl.textContent = `Filtre actif : ${type === 'bloc' ? 'Bloc ' : ''}${value}`;
-
   return AppState.filteredStats;
 }
 
@@ -273,36 +267,29 @@ function clearFilter() {
 function getDbIdsForFilter(type, value) {
   return AppState.allElements
     .filter(el => {
-      if (type === 'bloc')     return el.bloc === value;
-      if (type === 'zone')     return el.zone === value;
-      if (type === 'niveau')   return el.niveau === value;
-      if (type === 'grue')     return el.grue === value;
-      if (type === 'statut')   return el.statut === value;
+      if (type === 'bloc')   return el.bloc === value;
+      if (type === 'zone')   return el.zone === value;
+      if (type === 'niveau') return el.niveau === value;
+      if (type === 'grue')   return el.grue === value;
+      if (type === 'statut') return el.statut === value;
       return false;
     })
     .map(el => el.expressId || parseInt(el.id))
     .filter(Boolean);
 }
 
-// ── Avancement par activité (Ferraillage / Coulage / Pose) ────────────────────
 function computeActivityStats(elements) {
   let ferrVolume = 0, coulVolume = 0, poseVolume = 0, totalVolume = 0;
-
   for (const el of elements) {
     const v = el.volume || 0;
     totalVolume += v;
-
     const effFerr = el.pose === 1 || el.coul === 1 || el.ferr === 1;
     if (effFerr) ferrVolume += v;
-
     const effCoul = el.pose === 1 || el.coul === 1;
     if (effCoul) coulVolume += v;
-
     if (el.pose === 1) poseVolume += v;
   }
-
   const pct = (v) => totalVolume > 0 ? Math.round((v / totalVolume) * 100) : 0;
-
   return {
     ferr: { label: 'Ferraillage', doneVolume: ferrVolume, totalVolume, pct: pct(ferrVolume) },
     coul: { label: 'Coulage',     doneVolume: coulVolume, totalVolume, pct: pct(coulVolume) },
@@ -310,7 +297,6 @@ function computeActivityStats(elements) {
   };
 }
 
-// ── Avancement par Bloc et par Activité (même logique, groupée par Bloc) ─────
 function computeBlocActivityStats(elements) {
   const byBloc = {};
   for (const el of (elements || [])) {
@@ -319,16 +305,12 @@ function computeBlocActivityStats(elements) {
     const v = el.volume || 0;
     const d = byBloc[el.bloc];
     d.totalVolume += v;
-
     const effFerr = el.pose === 1 || el.coul === 1 || el.ferr === 1;
     if (effFerr) d.ferrVolume += v;
-
     const effCoul = el.pose === 1 || el.coul === 1;
     if (effCoul) d.coulVolume += v;
-
     if (el.pose === 1) d.poseVolume += v;
   }
-
   const result = {};
   for (const [bloc, d] of Object.entries(byBloc)) {
     const pct = (v) => d.totalVolume > 0 ? Math.round((v / d.totalVolume) * 100) : 0;
