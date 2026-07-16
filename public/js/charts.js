@@ -24,7 +24,7 @@ function initKpiDonut(stats) {
   const pct = stats.pctGlobal||0;
   kpiDonutChart = new Chart(ctx, {
     type:'doughnut',
-    data:{ datasets:[{ data:[pct,100-pct], backgroundColor:['#22b07d','#E5E2DC'], borderWidth:0 }] },
+    data:{ datasets:[{ data:[pct,100-pct], backgroundColor:['#D7AA48','#E5E2DC'], borderWidth:0 }] },
     options:{ responsive:true, cutout:'80%', animation:{duration:700}, plugins:{legend:{display:false},tooltip:{enabled:false}} },
   });
 }
@@ -125,9 +125,9 @@ function getBlocData(byBloc, blocs) {
     labels,
     datasets: [
       { label:'Unités Réalisé', data: blocs.map(b => byBloc[b]?.realise || 0),
-        backgroundColor:'#22b07d', borderRadius:4, borderSkipped:false },
+        backgroundColor:'#D7AA48', borderRadius:4, borderSkipped:false },
       { label:'Unités Totale',  data: blocs.map(b => byBloc[b]?.total   || 0),
-        backgroundColor:'#8A8480', borderRadius:4, borderSkipped:false },
+        backgroundColor:'#16213e', borderRadius:4, borderSkipped:false },
     ]
   };
 }
