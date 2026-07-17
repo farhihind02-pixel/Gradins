@@ -18,7 +18,7 @@
     <div class="login-logo-big">
       <div class="sgtm-logo-login">
         <svg viewBox="0 0 60 50" fill="none" width="70">
-          <polygon points="30,0 60,46 0,46" fill="#E87722"/>
+          <polygon points="30,0 60,46 0,46" fill="#D7AA48"/>
         </svg>
         <div class="sgtm-text-login">SGTM</div>
         <div class="sgtm-sub-login">SOCIÉTÉ GÉNÉRALE DES TRAVAUX DU MAROC</div>
@@ -45,9 +45,7 @@
     <div class="sgtm-brand">
       <div class="sgtm-logo-full">
         <svg viewBox="0 0 96 72" fill="none" width="64" height="48">
-          <!-- Triangle orange centré sur le T (entre S et G) -->
           <polygon points="48,2 70,36 26,36" fill="#D7AA48"/>
-          <!-- Lettres SGTM avec plus d'espace -->
           <text x="1" y="68" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="30" fill="white" letter-spacing="2">SGTM</text>
         </svg>
       </div>
@@ -70,33 +68,12 @@
 <!-- MAIN -->
 <main class="main-content">
 
-  <!-- TOPBAR -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <button class="topbar-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5h16M2 10h16M2 15h16"/></svg>
-      </button>
-      <div class="topbar-titles">
-        <div class="topbar-main-title">Tableau de bord de suivi des travaux des Gradins</div>
-        <div class="topbar-meta">
-          <div class="topbar-meta-block">
-            <span class="topbar-meta-label">PROJET</span>
-            <span class="topbar-meta-text">Travaux de construction du Grand Stade de Casablanca - Lot n°3</span>
-          </div>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <div class="connexion-status"><span class="status-dot ok" id="connDot"></span><span id="connLabel">ACC connecté ✓</span></div>
-      <button class="btn-reset" onclick="resetFilters()">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10a7 7 0 0113.3-3H13m3 0V4m-2 13a7 7 0 01-10.3-9"/></svg>
-        Réinitialiser
-      </button>
-      <div class="topbar-date">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8"><path d="M5 3v2H3a1 1 0 00-1 1v11h16V6a1 1 0 00-1-1h-2V3m-8 0h8"/></svg>
-        <span id="currentDate"></span>
-      </div>
-    </div>
-  </header>
+  <!-- IDs cachés nécessaires pour la connexion ACC -->
+  <div style="display:none">
+    <span class="status-dot ok" id="connDot"></span>
+    <span id="connLabel"></span>
+    <span id="currentDate"></span>
+  </div>
 
   <!-- FILTRES MULTI-SELECT -->
   <div class="quick-filters">
@@ -241,7 +218,6 @@
         <div class="ent-bar-bg">
           <div class="ent-bar-fill ent-bar-sgtm" id="sgtmBar" style="width:0%"></div>
         </div>
-
       </div>
       <div class="enterprise-item">
         <div class="ent-header">
@@ -251,13 +227,13 @@
         <div class="ent-bar-bg">
           <div class="ent-bar-fill ent-bar-tgcc" id="tgccBar" style="width:0%"></div>
         </div>
-
       </div>
       <div class="ent-footnote">Pourcentage de levées réalisées par entreprise</div>
     </div>
   </div>
 
 </section>
+
   <!-- ROW 2: Table + Maquette -->
   <section class="bottom-row">
 
