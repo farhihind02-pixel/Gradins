@@ -153,6 +153,26 @@ function initMultiSelects(stats) {
 }
 
 // ── Filtre principal ──────────────────────────────────────────────────────────
+// Valeurs "activité" du filtre Statut : basées sur BB POSE / BB FERR / BB COULAGE
+// plutôt que sur le statut Réalisé/Non réalisé classique.
+const ACTIVITY_STATUT_VALUES = ['pose', 'ferr', 'coul'];
+
+function leveeMatchesStatut(l, statut) {
+  if (!statut) return true;
+  if (statut === 'pose') return !!l.poseAny;
+  if (statut === 'ferr') return !!l.ferrAny;
+  if (statut === 'coul') return !!l.coulAny;
+  return l.statut === statut;
+}
+
+function elementMatchesStatut(el, statut) {
+  if (!statut) return true;
+  if (statut === 'pose') return el.pose === 1;
+  if (statut === 'ferr') return el.ferr === 1;
+  if (statut === 'coul') return el.coul === 1;
+  return el.statut === statut;
+}
+
 window.onQuickFilter = function() {
   const statut = document.getElementById('filterStatut')?.value || '';
   document.getElementById('filterStatut')?.classList.toggle('has-value', statut!=='');
@@ -162,7 +182,7 @@ window.onQuickFilter = function() {
     if (MSState.zone.size>0     && !MSState.zone.has(l.zone))                return false;
     if (MSState.niveau.size>0   && !MSState.niveau.has(l.niveau))            return false;
     if (MSState.grue.size>0     && !MSState.grue.has(l.grue))                return false;
-    if (statut && l.statut !== statut)                                        return false;
+    if (!leveeMatchesStatut(l, statut))                                       return false;
     return true;
   });
 
@@ -179,7 +199,7 @@ window.onQuickFilter = function() {
     if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
     if (MSState.niveau.size>0   && !MSState.niveau.has(el.niveau))           return false;
     if (MSState.grue.size>0     && !MSState.grue.has(el.grue))               return false;
-    if (statut && el.statut !== statut)                                        return false;
+    if (!elementMatchesStatut(el, statut))                                      return false;
     return true;
   });
 
@@ -189,7 +209,7 @@ window.onQuickFilter = function() {
     if (MSState.bloc.size>0     && !MSState.bloc.has(el.bloc))               return false;
     if (MSState.zone.size>0     && !MSState.zone.has(el.zone))               return false;
     if (MSState.niveau.size>0   && !MSState.niveau.has(el.niveau))           return false;
-    if (statut && el.statut !== statut)                                        return false;
+    if (!elementMatchesStatut(el, statut))                                      return false;
     return true;
   });
 

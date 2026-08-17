@@ -48,7 +48,7 @@ async function loadDataFromViewer(viewer) {
       null,
       {
         propFilter: [
-          'BLOC',
+          'BLOC', 'BB_Bloc', 'BB_BLOC',
           'ZONE',
           'ME_ELEMENT LEVEL', 'ME_ELEMENT SUB ZONE',
           'ME_ELEMENT TYPE',
@@ -141,7 +141,7 @@ function normalizeElementFromViewer(raw) {
     id:          String(raw.dbId),
     expressId:   raw.dbId,
     elementType,                              // ← ME_ELEMENT TYPE (ex: 'GD')
-    bloc:        get('BLOC') ? String(get('BLOC')).trim() : null,
+    bloc:        get('BLOC', 'BB_Bloc', 'BB_BLOC') ? String(get('BLOC', 'BB_Bloc', 'BB_BLOC')).trim() : null,
     zone:        get('ZONE') ? String(get('ZONE')).trim() : null,
     level:       get('ME_ELEMENT LEVEL') ? String(get('ME_ELEMENT LEVEL')).trim() : null,
     niveau:      get('ME_ELEMENT SUB ZONE') ? String(get('ME_ELEMENT SUB ZONE')).trim() : null,
@@ -173,8 +173,11 @@ function buildLeveesFromElements(elements) {
   for (const el of elements) {
     const level = el.level || 'L?';
     const key   = `${el.bloc}|${el.zone}|${level}`;
-    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, niveau: el.niveau, grue: el.grue, level, statuts: [], nb_elements: 0 };
+    if (!dict[key]) dict[key] = { key, bloc: el.bloc, zone: el.zone, niveau: el.niveau, grue: el.grue, level, statuts: [], nb_elements: 0, ferrs: [], couls: [], poses: [] };
     dict[key].statuts.push(el.statut);
+    dict[key].ferrs.push(el.ferr);
+    dict[key].couls.push(el.coul);
+    dict[key].poses.push(el.pose);
     dict[key].nb_elements++;
   }
   return Object.values(dict).map(d => ({
@@ -185,6 +188,11 @@ function buildLeveesFromElements(elements) {
     grue:        d.grue,
     level:       d.level,
     statut:      leveeStatus(d.statuts),
+    // Une levée "a" une activité Pose/Ferraillage/Coulage si au moins un de ses éléments
+    // porte le flag correspondant (BB POSE / BB FERR / BB COULAGE = 1)
+    ferrAny:     d.ferrs.some(v => v === 1),
+    coulAny:     d.couls.some(v => v === 1),
+    poseAny:     d.poses.some(v => v === 1),
     nb_elements: d.nb_elements,
   }));
 }
@@ -290,10 +298,12 @@ function computeActivityStats(elements) {
     if (el.pose === 1) poseVolume += v;
   }
   const pct = (v) => totalVolume > 0 ? Math.round((v / totalVolume) * 100) : 0;
+  const ferrPct = pct(ferrVolume), coulPct = pct(coulVolume), posePct = pct(poseVolume);
   return {
-    ferr: { label: 'Ferraillage', doneVolume: ferrVolume, totalVolume, pct: pct(ferrVolume) },
-    coul: { label: 'Coulage',     doneVolume: coulVolume, totalVolume, pct: pct(coulVolume) },
-    pose: { label: 'Pose',        doneVolume: poseVolume, totalVolume, pct: pct(poseVolume) },
+    ferr:   { label: 'Ferraillage', doneVolume: ferrVolume, totalVolume, pct: ferrPct },
+    coul:   { label: 'Coulage',     doneVolume: coulVolume, totalVolume, pct: coulPct },
+    pose:   { label: 'Pose',        doneVolume: poseVolume, totalVolume, pct: posePct },
+    global: { label: 'Avancement global', pct: Math.round((ferrPct + coulPct + posePct) / 3) },
   };
 }
 
@@ -314,10 +324,12 @@ function computeBlocActivityStats(elements) {
   const result = {};
   for (const [bloc, d] of Object.entries(byBloc)) {
     const pct = (v) => d.totalVolume > 0 ? Math.round((v / d.totalVolume) * 100) : 0;
+    const ferrPct = pct(d.ferrVolume), coulPct = pct(d.coulVolume), posePct = pct(d.poseVolume);
     result[bloc] = {
-      ferrPct: pct(d.ferrVolume),
-      coulPct: pct(d.coulVolume),
-      posePct: pct(d.poseVolume),
+      ferrPct,
+      coulPct,
+      posePct,
+      globalPct: Math.round((ferrPct + coulPct + posePct) / 3),
       totalVolume: d.totalVolume,
     };
   }
